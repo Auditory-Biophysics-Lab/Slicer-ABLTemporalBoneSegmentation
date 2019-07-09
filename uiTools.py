@@ -1,4 +1,5 @@
 import qt
+import PyQt5.Qt as qt5
 import ctk
 
 
@@ -20,24 +21,31 @@ def spin_box(minimum, maximum, click):
 
 
 def build_fiducial_tab(fiducial, on_click):
-    table = qt.QTableWidget(0, 4)
+    table = qt.QTableWidget(1, 3)
     table.setSelectionBehavior(qt.QAbstractItemView.SelectRows)
     table.setFixedHeight(46)
-    table.setHorizontalHeaderLabels(["Label", "X", "Y", "Z"])
+    table.setHorizontalHeaderLabels(["X", "Y", "Z"])
     table.horizontalHeader().setSectionResizeMode(qt.QHeaderView.Stretch)
-    # table.setVerticalHeaderLabels([label])
+    for i in (range(0, 3)):
+        item = qt.QTableWidgetItem("-")
+        item.setTextAlignment(qt.Qt.AlignCenter)
+        item.setFlags(qt.Qt.ItemIsSelectable)
+        table.setItem(0, i, item)
+    table.setVerticalHeaderLabels([''])
     # table.verticalHeader().setSectionResizeMode(qt.QHeaderView.Stretch)
-    # table.verticalHeader().setFixedWidth(46)
+    table.verticalHeader().setFixedWidth(0)
     # table.verticalHeader().setDefaultAlignment(qt.Qt.AlignCenter)
-    setButton = qt.QPushButton("Set \n" + fiducial["label"] + "\nFiducial")
-    setButton.setFixedSize(120, 46)
+    label = (fiducial["label"][:20] + '..') if len(fiducial["label"]) > 20 else fiducial["label"]
+    setButton = qt.QPushButton("Set \n" + label + "\nFiducial")
+    setButton.setFixedSize(130, 46)
 
     def set_fiducial(): on_click(fiducial)
-
     setButton.connect('clicked(bool)', set_fiducial)
 
     tab = qt.QWidget()
-    tab.setLayout(qt.QHBoxLayout())
+    layout = qt.QHBoxLayout()
+    # layout.setFixedHeight(200)
+    tab.setLayout(layout)
     tab.layout().addWidget(setButton)
     tab.layout().addWidget(table)
-    return tab
+    return tab, table
