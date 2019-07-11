@@ -24,30 +24,20 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file pinned="false" current-in-tab="false">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/DeepLearningPreProcessModule.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="85">
-              <caret line="5" column="23" selection-start-line="5" selection-start-column="23" selection-end-line="5" selection-end-column="23" />
-              <folding>
-                <element signature="e#22643#22672#0" />
-                <element signature="e#24861#26706#0" />
-                <element signature="e#24861#25072#1" />
-                <element signature="e#25103#25231#0" />
-                <element signature="e#25264#25389#0" />
-                <element signature="e#25449#26706#0" />
-                <element signature="e#25449#26099#1" />
-                <element signature="e#26156#26159#0" />
-              </folding>
+            <state relative-caret-position="191">
+              <caret line="493" column="24" selection-start-line="493" selection-start-column="24" selection-end-line="493" selection-end-column="24" />
             </state>
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/uiTools.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="85">
-              <caret line="5" column="31" selection-start-line="5" selection-start-column="31" selection-end-line="5" selection-end-column="31" />
+            <state relative-caret-position="323">
+              <caret line="19" column="14" selection-start-line="19" selection-start-column="14" selection-end-line="19" selection-end-column="14" />
               <folding>
                 <element signature="e#0#9#0" expanded="true" />
               </folding>
@@ -58,8 +48,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/../AValue3DSlicerModule/AValue3DSlicerModule.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="396">
-              <caret line="323" lean-forward="true" selection-start-line="323" selection-end-line="323" />
+            <state>
+              <caret line="299" column="12" selection-start-line="299" selection-start-column="12" selection-end-line="299" selection-end-column="12" />
               <folding>
                 <element signature="e#0#9#0" expanded="true" />
               </folding>
@@ -70,7 +60,7 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/../AlignCrop3DSlicerModule/AlignCrop3DSlicerModule.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-714">
+            <state relative-caret-position="170">
               <caret line="15" selection-start-line="15" selection-end-line="15" />
               <folding>
                 <element signature="e#0#9#0" expanded="true" />
@@ -95,16 +85,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>inputData</find>
-      <find>outputData</find>
-      <find>cats</find>
-      <find>check</find>
-      <find>checkable</find>
-      <find>slic</find>
-      <find>sitkUtils</find>
-      <find>=</find>
-      <find>loadedAtlas</find>
-      <find>currentSpacing</find>
       <find>set</find>
       <find>connect</find>
       <find>GetLay</find>
@@ -124,7 +104,17 @@
       <find>self.inputSelector</find>
       <find>setColo</find>
       <find>enable</find>
+      <find>vtkMRMLTransformNode</find>
+      <find>SetNthFiducialLocked</find>
+      <find>locked</find>
+      <find>table</find>
+      <find>name</find>
+      <find>GetName</find>
+      <find>checked</find>
+      <find>fiducialTransformNode</find>
+      <find>resample_image</find>
       <find>pull_node_resample_push</find>
+      <find>check_input_complete</find>
     </findStrings>
   </component>
   <component name="IdeDocumentHistory">
@@ -132,9 +122,9 @@
       <list>
         <option value="$PROJECT_DIR$/UITools.py" />
         <option value="$PROJECT_DIR$/UiTools.py" />
+        <option value="$PROJECT_DIR$/uiTools.py" />
         <option value="$PROJECT_DIR$/../AValue3DSlicerModule/AValue3DSlicerModule.py" />
         <option value="$PROJECT_DIR$/DeepLearningPreProcessModule.py" />
-        <option value="$PROJECT_DIR$/uiTools.py" />
       </list>
     </option>
   </component>
@@ -250,12 +240,14 @@
       <option name="presentableId" value="Default" />
       <updated>1561143054977</updated>
       <workItem from="1561143057623" duration="3110000" />
-      <workItem from="1561385598895" duration="165897000" />
+      <workItem from="1561385598895" duration="166085000" />
+      <workItem from="1562698901749" duration="9841000" />
+      <workItem from="1562855356021" duration="7147000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="169007000" />
+    <option name="totallyTimeSpent" value="186183000" />
   </component>
   <component name="TodoView">
     <todo-panel id="selected-file">
@@ -270,13 +262,13 @@
     <frame x="-8" y="22" width="1936" height="1066" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" sideWeight="0.4985507" visible="true" weight="0.14978679" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" sideWeight="0.4985507" visible="true" weight="0.15298508" />
       <window_info id="Structure" order="1" sideWeight="0.5014493" side_tool="true" weight="0.22882736" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" weight="0.32900432" />
       <window_info anchor="bottom" id="Run" order="2" />
-      <window_info anchor="bottom" id="Debug" order="3" sideWeight="0.49946696" visible="true" weight="0.187567" />
+      <window_info anchor="bottom" id="Debug" order="3" sideWeight="0.49946696" weight="0.187567" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
       <window_info anchor="bottom" id="TODO" order="6" weight="0.3290461" />
@@ -315,17 +307,10 @@
     <entry file="file://$PROJECT_DIR$/CMakeLists.txt">
       <provider selected="true" editor-type-id="text-editor" />
     </entry>
-    <entry file="file://$PROJECT_DIR$/17Feb2019ProgressScreenshot.JPG">
-      <provider selected="true" editor-type-id="images" />
-    </entry>
-    <entry file="file://$PROJECT_DIR$/20Feb2019ProgressScreenshot.JPG">
-      <provider selected="true" editor-type-id="images" />
-    </entry>
+    <entry file="file://$PROJECT_DIR$/17Feb2019ProgressScreenshot.JPG" />
+    <entry file="file://$PROJECT_DIR$/20Feb2019ProgressScreenshot.JPG" />
     <entry file="file://$PROJECT_DIR$/Resources/Icons/DeepLearningPreProcessModule.png">
       <provider selected="true" editor-type-id="images" />
-    </entry>
-    <entry file="file://$PROJECT_DIR$/Testing/CMakeLists.txt">
-      <provider selected="true" editor-type-id="text-editor" />
     </entry>
     <entry file="file://C:/Program Files/Slicer 4.10.2/bin/Python/slicer/ScriptedLoadableModule.py">
       <provider selected="true" editor-type-id="text-editor">
@@ -360,7 +345,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/../AlignCrop3DSlicerModule/AlignCrop3DSlicerModule.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-714">
+        <state relative-caret-position="170">
           <caret line="15" selection-start-line="15" selection-end-line="15" />
           <folding>
             <element signature="e#0#9#0" expanded="true" />
@@ -368,10 +353,23 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/Testing/CMakeLists.txt">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
     <entry file="file://$PROJECT_DIR$/../AValue3DSlicerModule/AValue3DSlicerModule.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="396">
-          <caret line="323" lean-forward="true" selection-start-line="323" selection-end-line="323" />
+        <state>
+          <caret line="299" column="12" selection-start-line="299" selection-start-column="12" selection-end-line="299" selection-end-column="12" />
+          <folding>
+            <element signature="e#0#9#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/uiTools.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="323">
+          <caret line="19" column="14" selection-start-line="19" selection-start-column="14" selection-end-line="19" selection-end-column="14" />
           <folding>
             <element signature="e#0#9#0" expanded="true" />
           </folding>
@@ -380,28 +378,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/DeepLearningPreProcessModule.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="85">
-          <caret line="5" column="23" selection-start-line="5" selection-start-column="23" selection-end-line="5" selection-end-column="23" />
-          <folding>
-            <element signature="e#22643#22672#0" />
-            <element signature="e#24861#26706#0" />
-            <element signature="e#24861#25072#1" />
-            <element signature="e#25103#25231#0" />
-            <element signature="e#25264#25389#0" />
-            <element signature="e#25449#26706#0" />
-            <element signature="e#25449#26099#1" />
-            <element signature="e#26156#26159#0" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/uiTools.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="85">
-          <caret line="5" column="31" selection-start-line="5" selection-start-column="31" selection-end-line="5" selection-end-column="31" />
-          <folding>
-            <element signature="e#0#9#0" expanded="true" />
-          </folding>
+        <state relative-caret-position="191">
+          <caret line="493" column="24" selection-start-line="493" selection-start-column="24" selection-end-line="493" selection-end-column="24" />
         </state>
       </provider>
     </entry>

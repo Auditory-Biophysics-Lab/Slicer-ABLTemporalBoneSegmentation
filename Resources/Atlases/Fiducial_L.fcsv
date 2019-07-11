@@ -1,10 +1,8 @@
-# Markups fiducial file version = 4.6
+# Markups fiducial file version = 4.10
 # CoordinateSystem = 0
 # columns = id,x,y,z,ow,ox,oy,oz,vis,sel,lock,label,desc,associatedNodeID
-vtkMRMLMarkupsFiducialNode_13,14.7472,-3.20085,-4.37873,0,0,0,1,1,1,0,Porus Acousticus,,vtkMRMLScalarVolumeNode3
-vtkMRMLMarkupsFiducialNode_12,1.00385,3.61914,1.47442,0,0,0,1,1,1,0,Geniculate Ganglion,,vtkMRMLScalarVolumeNode3
-vtkMRMLMarkupsFiducialNode_9,-7.15947,3.41247,-14.7843,0,0,0,1,1,1,0,Stylomastoid Foramen,,vtkMRMLScalarVolumeNode3
-vtkMRMLMarkupsFiducialNode_10,-2.30281,-3.61418,3.75065,0,0,0,1,1,1,0,Aricuate Eminence,,vtkMRMLScalarVolumeNode3
-vtkMRMLMarkupsFiducialNode_11,-5.09281,-5.37084,-4.05356,0,0,0,1,1,1,0,Posterior SC,,vtkMRMLScalarVolumeNode3
-vtkMRMLMarkupsFiducialNode_7,-1.16615,0.725811,-2.42768,0,0,0,1,1,1,0,Oval Window,,vtkMRMLScalarVolumeNode3
-vtkMRMLMarkupsFiducialNode_8,-0.442817,1.44914,-4.70391,0,0,0,1,1,1,0,Round Window,,vtkMRMLScalarVolumeNode3
+vtkMRMLMarkupsFiducialNode_1,0.866,3.865,1.234,0.000,0.000,0.000,1.000,1,1,0,Geniculate Ganglion,,vtkMRMLScalarVolumeNode4
+vtkMRMLMarkupsFiducialNode_2,-7.210,4.033,-15.496,0.000,0.000,0.000,1.000,1,1,0,Stylomastoid Foramen,,vtkMRMLScalarVolumeNode4
+vtkMRMLMarkupsFiducialNode_3,-5.359,4.201,2.302,0.000,0.000,0.000,1.000,1,1,0,Top of Malleus Head,,vtkMRMLScalarVolumeNode4
+vtkMRMLMarkupsFiducialNode_4,-2.331,-4.044,3.726,0.000,0.000,0.000,1.000,1,1,0,Top of SSCC (Arcuate Eminence),,vtkMRMLScalarVolumeNode4
+vtkMRMLMarkupsFiducialNode_5,-1.369,0.798,-2.326,0.000,0.000,0.000,1.000,1,1,0,Stapes Footplate,,vtkMRMLScalarVolumeNode4
