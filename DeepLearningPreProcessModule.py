@@ -41,12 +41,12 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
   """
     # Data members
     # TODO possibly move to logic block?
-    atlasNode = None            # TODO remove?
-    atlasFiducialNode = None    # TODO remove?
+    atlasNode = None
+    atlasFiducialNode = None
     inputNode = None
     inputFiducialNode = None
     fiducialSet = None
-    fiducialTransformNode = None
+    fiducialTransformedNode = None
 
     # TODO make as many local
     # TODO set tooltip for most
@@ -394,7 +394,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
                 self.inputFiducialNode.RemoveMarkup(i)
                 break
         self.fiducialPlacer.setPlaceModeEnabled(True)
-        return
+        # TODO fix clicking set then changing tab
 
     def click_fiducial_place(self, placing):
         if placing:
@@ -413,21 +413,21 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
             self.check_fiducials_complete()
 
     def click_fiducial_apply(self):
-        output, transform_node = DeepLearningPreProcessModuleLogic().apply_fiducial_registration(self.fiducialTransformNode, self.atlasFiducialNode, self.inputFiducialNode)
-        # set foreground
-        self.fiducialOverlayCheckbox.setEnabled(True)
-        self.fiducialOverlayCheckbox.setChecked(True)
-        self.click_fiducial_overlay()
+        output, self.fiducialTransformedNode = DeepLearningPreProcessModuleLogic().apply_fiducial_registration(self.inputNode, self.fiducialTransformedNode, self.atlasFiducialNode, self.inputFiducialNode)
 
         # TODO display
+        slicer.app.layoutManager().sliceWidget('Red').sliceLogic().GetSliceCompositeNode().SetForegroundVolumeID(self.fiducialTransformedNode.GetID())
+        slicer.app.layoutManager().sliceWidget('Yellow').sliceLogic().GetSliceCompositeNode().SetForegroundVolumeID(self.fiducialTransformedNode.GetID())
+        slicer.app.layoutManager().sliceWidget('Green').sliceLogic().GetSliceCompositeNode().SetForegroundVolumeID(self.fiducialTransformedNode.GetID())
+
         # slicer.app.applicationLogic().GetSelectionNode().SetSecondaryVolumeID(self.atlasVolume.GetID())
         # slicer.app.applicationLogic().PropagateForegroundVolumeSelection(0)
 
-        # set overlap of foreground & background in slice view
-        # slicer.app.layoutManager().sliceWidget('Red').sliceLogic().GetSliceCompositeNode().SetForegroundOpacity(0.4)
-        # slicer.app.layoutManager().sliceWidget('Yellow').sliceLogic().GetSliceCompositeNode().SetForegroundOpacity(0.4)
-        # slicer.app.layoutManager().sliceWidget('Green').sliceLogic().GetSliceCompositeNode().SetForegroundOpacity(0.4)
-
+        # TODO move to check_state
+        self.fiducialOverlayCheckbox.setEnabled(True)
+        self.fiducialOverlayCheckbox.setChecked(True)
+        self.click_fiducial_overlay()
+        self.fiducialHardenButton.setEnabled(True)
         return
 
     def click_fiducial_overlay(self):
@@ -441,7 +441,9 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
             slicer.app.layoutManager().sliceWidget('Green').sliceLogic().GetSliceCompositeNode().SetForegroundOpacity(0)
 
     def click_fiducial_harden(self):
-        # TODO
+        DeepLearningPreProcessModuleLogic().harden_fiducial_registration(self.fiducialTransformedNode)
+        self.fiducialHardenButton.setEnabled(False)
+        # TODO set as input
         return
 
     def click_rigid_apply(self):
@@ -535,11 +537,7 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
         return resampledNode
 
     @staticmethod
-    def apply_fiducial_registration(transform_node, atlas_fiducial_node, input_fiducial_node):
-        # create/add transform node if needed
-        if transform_node is None:
-            transform_node = slicer.vtkMRMLTransformNode()
-            slicer.mrmlScene.AddNode(transform_node)
+    def apply_fiducial_registration(input_node, fiducial_transformed_node, atlas_fiducial_node, input_fiducial_node):
         # create temporary trimmed atlas fiducial set node (locked & hidden)
         trimmed_atlas_fiducial_node = slicer.vtkMRMLMarkupsFiducialNode()
         for i_f in range(0, input_fiducial_node.GetNumberOfFiducials()):
@@ -554,24 +552,30 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
         trimmed_atlas_fiducial_node.SetLocked(True)
         for f in range(0, trimmed_atlas_fiducial_node.GetNumberOfFiducials()): trimmed_atlas_fiducial_node.SetNthFiducialVisibility(f, True)
         # set up cli parameters
+        transform = slicer.vtkMRMLTransformNode()
+        slicer.mrmlScene.AddNode(transform)
         parameters = {'fixedLandmarks'  : trimmed_atlas_fiducial_node.GetID(),
                       'movingLandmarks' : input_fiducial_node.GetID(),
                       'transformType'   : 'Rigid',
-                      'saveTransform' 	: transform_node.GetID()}
+                      'saveTransform' 	: transform.GetID()}
         output = slicer.cli.run(slicer.modules.fiducialregistration, None, parameters, wait_for_completion=True)
-        # remove trimmed_atlas_fiducial_node after completion
+        # create/add transform node if needed
+        if fiducial_transformed_node is None:
+            fiducial_transformed_node = slicer.vtkMRMLScalarVolumeNode()
+            fiducial_transformed_node.SetName("Fiducial Registered Input Volume")
+            slicer.mrmlScene.AddNode(fiducial_transformed_node)
+        # apply transform
+        fiducial_transformed_node.Copy(input_node)
+        # fiducial_transformed_node.SetAndObserveTransformNodeID(transform.GetID())
+        fiducial_transformed_node.ApplyTransform(transform.GetTransformToParent())
+        # clean up transform and trimmed atlas
+        # slicer.mrmlScene.RemoveNode(transform)
         slicer.mrmlScene.RemoveNode(trimmed_atlas_fiducial_node)
-        return output, transform_node
+        return output, fiducial_transformed_node
 
     @staticmethod
-    def harden_fiducial_registration(transform_node):
-        pass
-        # Apply Landmark transform on Atlas Volume then Harden
-        # self.atlasVolume.SetAndObserveTransformNodeID(self.LandmarkTrans.GetID())
-        # slicer.vtkSlicerTransformLogic().hardenTransform(self.atlasVolume)
-        # # Apply Landmark transform on Fiduicals then Harden
-        # self.atlasFid.SetAndObserveTransformNodeID(self.LandmarkTrans.GetID())
-        # slicer.vtkSlicerTransformLogic().hardenTransform(self.atlasFid)
+    def harden_fiducial_registration(fiducial_transformed_node):
+        fiducial_transformed_node.HardenTransform()
 
 
     # TODO remove
