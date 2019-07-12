@@ -27,8 +27,11 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/DeepLearningPreProcessModule.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="533">
-              <caret line="568" column="62" lean-forward="true" selection-start-line="568" selection-start-column="62" selection-end-line="568" selection-end-column="63" />
+            <state relative-caret-position="204">
+              <caret line="558" column="48" lean-forward="true" selection-start-line="558" selection-end-line="559" />
+              <folding>
+                <element signature="e#0#55#0" expanded="true" />
+              </folding>
             </state>
           </provider>
         </entry>
@@ -36,8 +39,11 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/uiTools.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state>
-              <caret column="9" lean-forward="true" selection-start-column="9" selection-end-column="9" />
+            <state relative-caret-position="664">
+              <caret line="44" column="22" selection-start-line="44" selection-start-column="22" selection-end-line="44" selection-end-column="22" />
+              <folding>
+                <element signature="e#0#9#0" expanded="true" />
+              </folding>
             </state>
           </provider>
         </entry>
@@ -45,8 +51,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/../AValue3DSlicerModule/AValue3DSlicerModule.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="323">
-              <caret line="318" column="73" selection-start-line="318" selection-start-column="62" selection-end-line="318" selection-end-column="73" />
+            <state relative-caret-position="216">
+              <caret line="589" selection-start-line="589" selection-end-line="611" />
               <folding>
                 <element signature="e#0#9#0" expanded="true" />
               </folding>
@@ -82,10 +88,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>connect</find>
-      <find>GetLay</find>
-      <find>print</find>
-      <find>atlasFiducialNode</find>
       <find>update_state</find>
       <find>inputNode</find>
       <find>range(</find>
@@ -112,6 +114,10 @@
       <find>pull_node_resample_push</find>
       <find>check_input_complete</find>
       <find>vtkMRMLScalarVolumeNode</find>
+      <find>fiducialSet.co</find>
+      <find>fiducialSet.</find>
+      <find>check_fiducials_complete</find>
+      <find>rigid</find>
     </findStrings>
   </component>
   <component name="IdeDocumentHistory">
@@ -239,12 +245,12 @@
       <workItem from="1561143057623" duration="3110000" />
       <workItem from="1561385598895" duration="166085000" />
       <workItem from="1562698901749" duration="9841000" />
-      <workItem from="1562855356021" duration="14980000" />
+      <workItem from="1562855356021" duration="25143000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="194016000" />
+    <option name="totallyTimeSpent" value="204179000" />
   </component>
   <component name="TodoView">
     <todo-panel id="selected-file">
@@ -353,23 +359,6 @@
     <entry file="file://$PROJECT_DIR$/Testing/CMakeLists.txt">
       <provider selected="true" editor-type-id="text-editor" />
     </entry>
-    <entry file="file://$PROJECT_DIR$/uiTools.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state>
-          <caret column="9" lean-forward="true" selection-start-column="9" selection-end-column="9" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/../AValue3DSlicerModule/AValue3DSlicerModule.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="323">
-          <caret line="318" column="73" selection-start-line="318" selection-start-column="62" selection-end-line="318" selection-end-column="73" />
-          <folding>
-            <element signature="e#0#9#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$USER_HOME$/.PyCharm2019.1/system/python_stubs/1363895398/__builtin__.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="32464">
@@ -377,10 +366,33 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/uiTools.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="664">
+          <caret line="44" column="22" selection-start-line="44" selection-start-column="22" selection-end-line="44" selection-end-column="22" />
+          <folding>
+            <element signature="e#0#9#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../AValue3DSlicerModule/AValue3DSlicerModule.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="216">
+          <caret line="589" selection-start-line="589" selection-end-line="611" />
+          <folding>
+            <element signature="e#0#9#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/DeepLearningPreProcessModule.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="533">
-          <caret line="568" column="62" lean-forward="true" selection-start-line="568" selection-start-column="62" selection-end-line="568" selection-end-column="63" />
+        <state relative-caret-position="204">
+          <caret line="558" column="48" lean-forward="true" selection-start-line="558" selection-end-line="559" />
+          <folding>
+            <element signature="e#0#55#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>
