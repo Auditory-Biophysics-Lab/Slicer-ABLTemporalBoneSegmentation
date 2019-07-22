@@ -19,7 +19,7 @@ class DeepLearningPreProcessModule(ScriptedLoadableModule):
 
     def __init__(self, parent):
         ScriptedLoadableModule.__init__(self, parent)
-        self.parent.title = "Cochlea Deep-Learning Pre-Process"
+        self.parent.title = "Temporal Bone Deep-Learning Pre-Process"
         self.parent.categories = ["Otolaryngology"]
         self.parent.dependencies = []
         self.parent.contributors = ["Luke Helpard (Western University) and Evan Simpson (Western University)"]
