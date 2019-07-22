@@ -190,8 +190,8 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         self.layout.addStretch()
 
         # testing TODO remove
-        path = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Atlases/1512R_Clinical_Aligned_Test_Input.nrrd"
-        node = slicer.util.loadVolume(path, returnNode=True)[1]
+        # path = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Atlases/1512R_Clinical_Aligned_Test_Input.nrrd"
+        # node = slicer.util.loadVolume(path, returnNode=True)[1]
         # self.inputSelector.setCurrentNode(node)
         # self.click_load_volume()
         # end testing area
@@ -368,7 +368,6 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
 
     def update_output(self):
         pass
-
 
     # ui button actions ------------------------------------------------------------------------------
     def click_load_volume(self):
