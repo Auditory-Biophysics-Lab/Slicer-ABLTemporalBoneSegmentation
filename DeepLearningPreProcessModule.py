@@ -21,7 +21,7 @@ class DeepLearningPreProcessModule(ScriptedLoadableModule):
         ScriptedLoadableModule.__init__(self, parent)
         self.parent.title = "Temporal Bone Deep-Learning Pre-Process"
         self.parent.categories = ["Otolaryngology"]
-        self.parent.dependencies = []
+        self.parent.dependencies = ["SlicerElastix"]
         self.parent.contributors = ["Luke Helpard (Western University) and Evan Simpson (Western University)"]
         self.parent.helpText = """
         
