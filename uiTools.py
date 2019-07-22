@@ -1,5 +1,4 @@
 import qt
-import PyQt5.Qt as qt5
 import ctk
 
 
