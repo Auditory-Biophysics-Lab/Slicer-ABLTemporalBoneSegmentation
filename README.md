@@ -1,5 +1,6 @@
-### Temporal Bone Deep Learning Pre Process Module
-#### Developed by Evan Simpson by HML & SKA Auditory Medical Biophysics Lab at Western University, London, ON, CA
+**Temporal Bone Deep Learning Pre Process Module** 
+
+*Developed by HML & SKA Auditory Medical Biophysics Lab at Western University, London, ON, CA*
 
 ## About
 This 3D Slicer module handles spacing resampling, fiducial registration, and rigid registration of temporal bone images.
