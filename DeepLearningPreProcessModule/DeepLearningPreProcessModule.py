@@ -5,9 +5,7 @@ import SimpleITK as sitk
 import sitkUtils as sitku
 import Elastix
 from slicer.ScriptedLoadableModule import *
-
-# custom imports
-import uiTools
+from InterfaceTools import InterfaceTools
 
 
 # Main Initialization & Info
@@ -21,17 +19,13 @@ class DeepLearningPreProcessModule(ScriptedLoadableModule):
         ScriptedLoadableModule.__init__(self, parent)
         self.parent.title = "Temporal Bone Deep-Learning Pre-Process"
         self.parent.categories = ["Otolaryngology"]
-        self.parent.dependencies = ["SlicerElastix"]
+        self.parent.dependencies = []
         self.parent.contributors = ["Luke Helpard (Western University) and Evan Simpson (Western University)"]
-        self.parent.helpText = """
-        
-            """
-        self.parent.helpText += self.getDefaultModuleDocumentationLink()
-        self.parent.acknowledgementText = "This file was originally developed by Luke Helpard and Evan Simpson at" \
-                                          "the University of Western Ontario. "
+        self.parent.helpText = "" + self.getDefaultModuleDocumentationLink()
+        self.parent.acknowledgementText = "This file was originally developed by Luke Helpard and Evan Simpson at The University of Western Ontario."
 
 
-# User Interface
+# User Interface Build
 class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
     """Uses ScriptedLoadableModuleWidget base class, available at:
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
@@ -46,35 +40,24 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
 
     # UI members --------------
     sectionsList = []
-    # input
     inputSelector = None
     fitAllButton = None
     leftBoneCheckBox = None
     rightBoneCheckBox = None
-    # resampling
     resamplingInfoLabel = None
     resampleSpacingXBox = None
     resampleSpacingYBox = None
     resampleSpacingZBox = None
     resampleButton = None
-    # fiducials
     fiducialPlacer = None
     fiducialTabs = None
     fiducialTabsLastIndex = None
     fiducialApplyButton = None
     fiducialOverlayCheckbox = None
     fiducialHardenButton = None
-    # rigid
     rigidApplyButton = None
-    # output
     outputLabel = None
     outputSelector = None
-
-    # TODO remove
-    # cropButton = None
-    # defineROIButton = None
-    # flipButton = None
-    # outputSelector = None
 
     # main initialization ------------------------------------------------------------------------------
     def __init__(self, parent):
@@ -112,9 +95,9 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
 
     def init_resample_tools(self):
         self.resamplingInfoLabel = qt.QLabel("Load in a sample to enable spacing resample.")
-        self.resampleSpacingXBox = uiTools.spin_box(0, 1000, self.click_spacing_spin_box)
-        self.resampleSpacingYBox = uiTools.spin_box(0, 1000, self.click_spacing_spin_box)
-        self.resampleSpacingZBox = uiTools.spin_box(0, 1000, self.click_spacing_spin_box)
+        self.resampleSpacingXBox = InterfaceTools.build_spin_box(0, 1000, self.click_spacing_spin_box)
+        self.resampleSpacingYBox = InterfaceTools.build_spin_box(0, 1000, self.click_spacing_spin_box)
+        self.resampleSpacingZBox = InterfaceTools.build_spin_box(0, 1000, self.click_spacing_spin_box)
         self.resampleButton = qt.QPushButton("Resample Input to New Volume")
         self.resampleButton.setFixedHeight(23)
         self.resampleButton.enabled = False
@@ -138,6 +121,9 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         self.fiducialPlacer.placeMultipleMarkups = slicer.qSlicerMarkupsPlaceWidget.ForcePlaceSingleMarkup
         self.fiducialPlacer.setMRMLScene(slicer.mrmlScene)
         self.fiducialPlacer.placeButton().show()
+        # self.fiducialPlacer.setNodeColor(qt.QColor(255, 100, 0))
+        # self.fiducialPlacer.setDefaultNodeColor(qt.QColor(255, 100, 0))
+        # print(self.fiducialPlacer.defaultNodeColor())
         self.fiducialPlacer.connect('activeMarkupsFiducialPlaceModeChanged(bool)', self.click_fiducial_place_mode)
 
     def init_rigid_registration(self):
@@ -154,29 +140,6 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         self.outputSelector.noneEnabled = False
         self.outputSelector.setMRMLScene(slicer.mrmlScene)
         # self.outputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.click_load_volume)
-
-    # TODO remove
-    # def init_crop_tools(self):
-    #     self.defineROIButton = qt.QPushButton("Define ROI")
-    #     self.defineROIButton.enabled = True
-    #     self.cropButton = qt.QPushButton("Crop")
-    #     self.cropButton.enabled = True
-    #
-    # def init_flip_tools(self):
-    #     self.flipButton = qt.QPushButton("Flip Volume")
-    #     self.flipButton.enabled = False
-    #     self.flipButton.connect('clicked(bool)', self.click_flip_volume)
-    #
-    # def init_output_tools(self):
-    #     self.outputSelector = slicer.qMRMLNodeComboBox()
-    #     self.outputSelector.nodeTypes = ["vtkMRMLScalarVolumeNode"]
-    #     self.outputSelector.selectNodeUponCreation = True
-    #     self.outputSelector.addEnabled = False
-    #     self.outputSelector.removeEnabled = False
-    #     self.outputSelector.noneEnabled = True
-    #     self.outputSelector.showHidden = False
-    #     self.outputSelector.showChildNodeTypes = False
-    #     self.outputSelector.setMRMLScene(slicer.mrmlScene)
 
     # main ui layout building ------------------------------------------------------------------------------
     def setup(self):
@@ -197,7 +160,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         # end testing area
 
     def build_input_tools(self):
-        section = uiTools.dropdown("Input Selection")
+        section = InterfaceTools.build_dropdown("Input Selection")
         layout = qt.QFormLayout(section)
         layout.addRow(qt.QLabel("Select an input volume to begin, then ensure the correct side is selected."))
         box = qt.QHBoxLayout()
@@ -212,7 +175,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         return section
 
     def build_resample_tools(self):
-        section = uiTools.dropdown("Spacing Resample Tools", disabled=True)
+        section = InterfaceTools.build_dropdown("Spacing Resample Tools", disabled=True)
         grid = qt.QGridLayout()
         label = qt.QLabel("X:")
         label.setAlignment(qt.Qt.AlignCenter)
@@ -237,7 +200,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         return section
 
     def build_fiducial_registration(self):
-        section = uiTools.dropdown("Fiducial Registration", disabled=True)
+        section = InterfaceTools.build_dropdown("Fiducial Registration", disabled=True)
         layout = qt.QVBoxLayout(section)
         layout.addWidget(qt.QLabel("Set at least 3 fiducials. Setting all 5 yields the best results."))
         layout.addWidget(self.fiducialTabs)
@@ -250,7 +213,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         return section
 
     def build_rigid_registration(self):
-        section = uiTools.dropdown("Rigid Registration", disabled=True)
+        section = InterfaceTools.build_dropdown("Rigid Registration", disabled=True)
         row = qt.QHBoxLayout()
         # row.addWidget(qt.QLabel("0.01 sample percentage\n30000 iterations\n0.00001 minimum step length"))
         # row.addWidget(qt.QLabel("2 maximum step length\n1 translation scale\n"))
@@ -262,38 +225,12 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         return section
 
     def build_output_tools(self):
-        section = uiTools.dropdown("Output Tools", disabled=True)
+        section = InterfaceTools.build_dropdown("Output Tools", disabled=True)
         layout = qt.QFormLayout(section)
         layout.addRow(self.outputLabel)
         layout.addRow("Output Volume: ", self.outputSelector)
         layout.setMargin(10)
         return section
-
-    # TODO remove
-    # def build_crop_dropdown(self):
-    #     dropdown = ctk.ctkCollapsibleButton()
-    #     dropdown.text = "Crop Tools"
-    #     layout = qt.QFormLayout(dropdown)
-    #     layout.addRow(self.defineROIButton)
-    #     layout.addRow(self.cropButton)
-    #     layout.setMargin(10)
-    #     return dropdown
-    #
-    # def build_flip_tools(self):
-    #     dropdown = ctk.ctkCollapsibleButton()
-    #     dropdown.text = "Flip Volume"
-    #     layout = qt.QFormLayout(dropdown)
-    #     layout.addRow(self.flipButton)
-    #     layout.setMargin(10)
-    #     return dropdown
-    #
-    # def build_output_tools(self):
-    #     dropdown = ctk.ctkCollapsibleButton()
-    #     dropdown.text = "Output"
-    #     layout = qt.QFormLayout(dropdown)
-    #     layout.addRow("Output Volume: ", self.outputSelector)
-    #     layout.setMargin(10)
-    #     return dropdown
 
     # state checking ------------------------------------------------------------------------------
     def check_input_complete(self):
@@ -317,7 +254,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
             self.fiducialSet = DeepLearningPreProcessModuleLogic().initialize_fiducial_set(self.atlasFiducialNode)
             self.fiducialTabs.clear()
             for f in self.fiducialSet:
-                tab, f["table"] = uiTools.build_fiducial_tab(f, self.click_fiducial_set_button)
+                tab, f["table"] = InterfaceTools.build_fiducial_tab(f, self.click_fiducial_set_button)
                 self.fiducialTabs.addTab(tab, f["label"])
         # check if we need a fiducial node
         if self.inputFiducialNode is None:

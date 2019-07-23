@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 3.5)
 
-project(AuditoryBiophysicLabOtolaryngology)
+project(AuditoryBiophysicsLabOtolaryngology)
 
 #-----------------------------------------------------------------------------
 # Extension meta-information
 set(EXTENSION_HOMEPAGE "http://slicer.org/slicerWiki/index.php/Documentation/Nightly/Extensions/TemporalDeepLearningPreProcessModule")
-set(EXTENSION_CATEGORY "Otolaryngology")
+set(EXTENSION_CATEGORY "Examples")
 set(EXTENSION_CONTRIBUTORS "Evan Simpson (HML & SKA Lab.)")
 set(EXTENSION_DESCRIPTION "Temporal bone deep learning pre processing module.")
 set(EXTENSION_ICONURL "http://www.example.com/Slicer/Extensions/TemporalDeepLearningPreProcessModule.png")
@@ -19,6 +19,7 @@ include(${Slicer_USE_FILE})
 
 #-----------------------------------------------------------------------------
 # Extension modules
+add_subdirectory(DeepLearningPreProcessModule)
 ## NEXT_MODULE
 
 #-----------------------------------------------------------------------------

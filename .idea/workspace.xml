@@ -1,7 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="f08bb156-2c28-4f65-9fa3-faa143f298d2" name="Default Changelist" comment="" />
+    <list default="true" id="f08bb156-2c28-4f65-9fa3-faa143f298d2" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/DeepLearningPreProcessModule/InterfaceTools.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/CMakeLists.txt" beforeDir="false" afterPath="$PROJECT_DIR$/CMakeLists.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/DeepLearningPreProcessModule.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Resources/Atlases/1512L_AtlasTemplate.mha" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Resources/Atlases/1512R_Clinical_Aligned_Test_Input.nrrd" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Resources/Atlases/Atlas_L.mha" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Resources/Atlases/Atlas_R.mha" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Resources/Atlases/Fiducial_L.fcsv" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Resources/Atlases/Fiducial_R.fcsv" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Resources/Icons/DeepLearningPreProcessModule.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Resources/Icons/check.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Resources/Icons/fiducial.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Resources/Icons/fit.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Testing/CMakeLists.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Testing/Python/CMakeLists.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uiTools.py" beforeDir="false" />
+    </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -24,96 +43,57 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/README.md">
+          <provider selected="true" editor-type-id="split-provider[text-editor;markdown-preview-editor]">
+            <state split_layout="SPLIT">
+              <first_editor />
+              <second_editor />
+            </state>
+          </provider>
+        </entry>
+      </file>
       <file pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/DeepLearningPreProcessModule.py">
+        <entry file="file://$PROJECT_DIR$/DeepLearningPreProcessModule/DeepLearningPreProcessModule.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="259">
-              <caret line="610" column="44" lean-forward="true" selection-start-line="610" selection-start-column="44" selection-end-line="610" selection-end-column="44" />
+            <state relative-caret-position="136">
+              <caret line="8" lean-forward="true" selection-start-line="8" selection-end-line="8" />
               <folding>
-                <element signature="e#1#15#0" expanded="true" />
-                <element signature="e#353#1198#0" />
-                <element signature="e#353#516#1" />
-                <element signature="e#558#1198#0" />
-                <element signature="e#900#928#0" />
-                <element signature="e#1044#1198#0" />
-                <element signature="e#1294#1454#1" />
-                <element signature="e#4331#5023#0" />
-                <element signature="e#5075#6319#0" />
-                <element signature="e#10225#11182#0" />
-                <element signature="e#11274#11802#0" />
-                <element signature="e#15564#16487#0" />
-                <element signature="e#15774#15985#0" />
-                <element signature="e#15843#15967#0" />
-                <element signature="e#16532#16814#0" />
-                <element signature="e#16869#17041#0" />
-                <element signature="e#17095#17266#0" />
-                <element signature="e#17314#17637#0" />
-                <element signature="e#17684#18067#0" />
-                <element signature="e#18062#18869#0" />
-                <element signature="e#19143#19422#0" />
-                <element signature="e#18659#18806#0" />
-                <element signature="e#18746#18806#0" />
-                <element signature="e#19491#20076#0" />
-                <element signature="e#19656#20073#0" />
-                <element signature="e#25362#25538#0" />
-                <element signature="e#22875#23245#0" />
-                <element signature="e#25212#25857#0" />
-                <element signature="e#24041#24075#0" />
-                <element signature="e#24149#24811#0" />
-                <element signature="e#24893#25195#0" />
-                <element signature="e#30085#30213#0" />
-                <element signature="e#30246#30371#0" />
-                <element signature="e#30431#31688#0" />
-                <element signature="e#30431#31081#1" />
-                <element signature="e#31138#31141#0" />
-                <marker date="1563813420586" expanded="true" signature="2218:2318" ph="..." />
-                <marker date="1563813420586" expanded="true" signature="7112:8117" ph="..." />
-                <marker date="1563813420586" expanded="false" signature="7130:8117" ph="..." />
-                <marker date="1563813420586" expanded="false" signature="7144:8077" ph="..." />
-                <marker date="1563813420586" expanded="false" signature="12290:13155" ph="..." />
-                <marker date="1563813420586" expanded="false" signature="24605:25732" ph="..." />
-                <marker date="1563813420586" expanded="false" signature="31409:33542" ph="..." />
+                <element signature="e#0#14#0" expanded="true" />
+                <element signature="e#33733#35578#0" />
               </folding>
             </state>
           </provider>
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/uiTools.py">
+        <entry file="file://$PROJECT_DIR$/DeepLearningPreProcessModule/InterfaceTools.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state>
-              <caret column="9" selection-start-column="9" selection-end-column="9" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/../AValue3DSlicerModule/AValue3DSlicerModule.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="236">
-              <caret line="594" column="70" selection-start-line="594" selection-start-column="70" selection-end-line="594" selection-end-column="70" />
+            <state relative-caret-position="34">
+              <caret line="2" selection-start-line="2" selection-end-line="2" />
               <folding>
-                <element signature="e#0#9#0" expanded="true" />
+                <element signature="e#0#10#0" expanded="true" />
               </folding>
             </state>
           </provider>
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/../AlignCrop3DSlicerModule/AlignCrop3DSlicerModule.py">
+        <entry file="file://$PROJECT_DIR$/DeepLearningPreProcessModule/CMakeLists.txt">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="170">
-              <caret line="15" selection-start-line="15" selection-end-line="15" />
-              <folding>
-                <element signature="e#0#9#0" expanded="true" />
-              </folding>
+              <caret line="10" column="3" selection-start-line="10" selection-start-column="3" selection-end-line="10" selection-end-column="3" />
             </state>
           </provider>
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/Testing/CMakeLists.txt">
-          <provider selected="true" editor-type-id="text-editor" />
+        <entry file="file://$PROJECT_DIR$/CMakeLists.txt">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="153">
+              <caret line="9" column="77" selection-start-line="9" selection-start-column="27" selection-end-line="9" selection-end-column="77" />
+            </state>
+          </provider>
         </entry>
       </file>
     </leaf>
@@ -127,8 +107,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>setColo</find>
-      <find>enable</find>
       <find>vtkMRMLTransformNode</find>
       <find>SetNthFiducialLocked</find>
       <find>locked</find>
@@ -157,7 +135,12 @@
       <find>self.inputselector.set</find>
       <find>rigid</find>
       <find>itk</find>
+      <find>self.outputSelector.connect</find>
+      <find>spin_box</find>
     </findStrings>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="IdeDocumentHistory">
     <option name="CHANGED_PATHS">
@@ -165,53 +148,73 @@
         <option value="$PROJECT_DIR$/UITools.py" />
         <option value="$PROJECT_DIR$/UiTools.py" />
         <option value="$PROJECT_DIR$/../AValue3DSlicerModule/AValue3DSlicerModule.py" />
-        <option value="$PROJECT_DIR$/uiTools.py" />
         <option value="$PROJECT_DIR$/DeepLearningPreProcessModule.py" />
+        <option value="$PROJECT_DIR$/uiTools.py" />
+        <option value="$PROJECT_DIR$/DeepLearningPreProcessModule/uiTools.py" />
+        <option value="$PROJECT_DIR$/DeepLearningPreProcessModule/CMakeLists.txt" />
+        <option value="$PROJECT_DIR$/CMakeLists.txt" />
+        <option value="$PROJECT_DIR$/DeepLearningPreProcessModule/Utilities/UiTools.py" />
+        <option value="$PROJECT_DIR$/DeepLearningPreProcessModule/Utilities/UI.py" />
+        <option value="$PROJECT_DIR$/DeepLearningPreProcessModule/DeepLearningPreProcessModule.py" />
+        <option value="$PROJECT_DIR$/DeepLearningPreProcessModule/InterfaceTools.py" />
       </list>
     </option>
   </component>
   <component name="ProjectFrameBounds" extendedState="6">
-    <option name="x" value="379" />
-    <option name="y" value="-10" />
-    <option name="width" value="1440" />
-    <option name="height" value="788" />
+    <option name="x" value="215" />
+    <option name="y" value="46" />
+    <option name="width" value="869" />
+    <option name="height" value="784" />
   </component>
   <component name="ProjectView">
     <navigator proportions="" version="1">
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
+      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
             <path>
-              <item name="DeepLearningPreProcessModule" type="b2602c69:ProjectViewProjectNode" />
+              <item name="AuditoryBiophysicsLab-DeepLearningPreProcessModule" type="b2602c69:ProjectViewProjectNode" />
+              <item name="AuditoryBiophysicsLab-DeepLearningPreProcessModule" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="AuditoryBiophysicsLab-DeepLearningPreProcessModule" type="b2602c69:ProjectViewProjectNode" />
+              <item name="AuditoryBiophysicsLab-DeepLearningPreProcessModule" type="462c0819:PsiDirectoryNode" />
               <item name="DeepLearningPreProcessModule" type="462c0819:PsiDirectoryNode" />
             </path>
             <path>
-              <item name="DeepLearningPreProcessModule" type="b2602c69:ProjectViewProjectNode" />
+              <item name="AuditoryBiophysicsLab-DeepLearningPreProcessModule" type="b2602c69:ProjectViewProjectNode" />
+              <item name="AuditoryBiophysicsLab-DeepLearningPreProcessModule" type="462c0819:PsiDirectoryNode" />
               <item name="DeepLearningPreProcessModule" type="462c0819:PsiDirectoryNode" />
               <item name="Resources" type="462c0819:PsiDirectoryNode" />
             </path>
             <path>
-              <item name="DeepLearningPreProcessModule" type="b2602c69:ProjectViewProjectNode" />
+              <item name="AuditoryBiophysicsLab-DeepLearningPreProcessModule" type="b2602c69:ProjectViewProjectNode" />
+              <item name="AuditoryBiophysicsLab-DeepLearningPreProcessModule" type="462c0819:PsiDirectoryNode" />
               <item name="DeepLearningPreProcessModule" type="462c0819:PsiDirectoryNode" />
               <item name="Resources" type="462c0819:PsiDirectoryNode" />
-              <item name="Icons" type="462c0819:PsiDirectoryNode" />
+              <item name="Atlases" type="462c0819:PsiDirectoryNode" />
             </path>
           </expand>
           <select />
         </subPane>
       </pane>
-      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
+    <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />
-    <property name="last_opened_file_path" value="C:/Program Files/Slicer 4.10.2" />
+    <property name="last_opened_file_path" value="$USER_HOME$/Desktop/AuditoryBiophysicsLabDeepLearningPreProcessModule" />
     <property name="nodejs_interpreter_path.stuck_in_default_project" value="undefined stuck path" />
     <property name="nodejs_npm_path_reset_for_default_project" value="true" />
     <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
+  </component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\Evan\Documents\AuditoryBiophysicsLab-DeepLearningPreProcessModule\DeepLearningPreProcessModule" />
+    </key>
   </component>
   <component name="RunDashboard">
     <option name="ruleStates">
@@ -284,12 +287,13 @@
       <workItem from="1561143057623" duration="3110000" />
       <workItem from="1561385598895" duration="166085000" />
       <workItem from="1562698901749" duration="9841000" />
-      <workItem from="1562855356021" duration="70281000" />
+      <workItem from="1562855356021" duration="74719000" />
+      <workItem from="1563820532694" duration="6152000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="249317000" />
+    <option name="totallyTimeSpent" value="259907000" />
   </component>
   <component name="TodoView">
     <todo-panel id="selected-file">
@@ -304,7 +308,7 @@
     <frame x="-8" y="22" width="1936" height="1066" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" sideWeight="0.4985507" visible="true" weight="0.15298508" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" sideWeight="0.4985507" visible="true" weight="0.15458423" />
       <window_info id="Structure" order="1" sideWeight="0.5014493" side_tool="true" weight="0.22882736" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
@@ -346,9 +350,6 @@
     <SUITE FILE_PATH="coverage/DeepLearningPreProcessModule$DeepLearningPreProcessModule.coverage" NAME="DeepLearningPreProcessModule Coverage Results" MODIFIED="1561385620629" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/CMakeLists.txt">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
     <entry file="file://$PROJECT_DIR$/17Feb2019ProgressScreenshot.JPG" />
     <entry file="file://$PROJECT_DIR$/20Feb2019ProgressScreenshot.JPG" />
     <entry file="file://$PROJECT_DIR$/Resources/Icons/DeepLearningPreProcessModule.png">
@@ -361,16 +362,7 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/../DeepLearningPreProcessModule - Copy/DeepLearningPreProcessModule.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="289">
-          <caret line="203" column="41" selection-start-line="203" selection-start-column="34" selection-end-line="203" selection-end-column="41" />
-          <folding>
-            <element signature="e#0#9#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
+    <entry file="file://$PROJECT_DIR$/../DeepLearningPreProcessModule - Copy/DeepLearningPreProcessModule.py" />
     <entry file="file://C:/Program Files/Slicer 4.10.2/lib/Python/Lib/site-packages/SimpleITK/SimpleITK.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="170">
@@ -378,16 +370,7 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/../AlignCrop3DSlicerModule/AlignCrop3DSlicerModule.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="170">
-          <caret line="15" selection-start-line="15" selection-end-line="15" />
-          <folding>
-            <element signature="e#0#9#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
+    <entry file="file://$PROJECT_DIR$/../AlignCrop3DSlicerModule/AlignCrop3DSlicerModule.py" />
     <entry file="file://$PROJECT_DIR$/Testing/CMakeLists.txt">
       <provider selected="true" editor-type-id="text-editor" />
     </entry>
@@ -398,23 +381,7 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/../AValue3DSlicerModule/AValue3DSlicerModule.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="236">
-          <caret line="594" column="70" selection-start-line="594" selection-start-column="70" selection-end-line="594" selection-end-column="70" />
-          <folding>
-            <element signature="e#0#9#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/uiTools.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state>
-          <caret column="9" selection-start-column="9" selection-end-column="9" />
-        </state>
-      </provider>
-    </entry>
+    <entry file="file://$PROJECT_DIR$/../AValue3DSlicerModule/AValue3DSlicerModule.py" />
     <entry file="file://C:/Program Files/Slicer 4.10.2/bin/Python/slicer/ScriptedLoadableModule.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="-922">
@@ -422,54 +389,75 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/uiTools.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="51">
+          <caret line="3" selection-start-line="3" selection-end-line="3" />
+          <folding>
+            <element signature="e#0#9#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/DeepLearningPreProcessModule.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="259">
-          <caret line="610" column="44" lean-forward="true" selection-start-line="610" selection-start-column="44" selection-end-line="610" selection-end-column="44" />
+        <state relative-caret-position="136">
+          <caret line="8" column="16" selection-start-line="8" selection-start-column="16" selection-end-line="8" selection-end-column="16" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/README.md">
+      <provider selected="true" editor-type-id="split-provider[text-editor;markdown-preview-editor]">
+        <state split_layout="SPLIT">
+          <first_editor />
+          <second_editor />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/DeepLearningPreProcessModule/uiTools.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="51">
+          <caret line="3" selection-start-line="3" selection-end-line="50" />
           <folding>
-            <element signature="e#1#15#0" expanded="true" />
-            <element signature="e#353#1198#0" />
-            <element signature="e#353#516#1" />
-            <element signature="e#558#1198#0" />
-            <element signature="e#900#928#0" />
-            <element signature="e#1044#1198#0" />
-            <element signature="e#1294#1454#1" />
-            <element signature="e#4331#5023#0" />
-            <element signature="e#5075#6319#0" />
-            <element signature="e#10225#11182#0" />
-            <element signature="e#11274#11802#0" />
-            <element signature="e#15564#16487#0" />
-            <element signature="e#15774#15985#0" />
-            <element signature="e#15843#15967#0" />
-            <element signature="e#16532#16814#0" />
-            <element signature="e#16869#17041#0" />
-            <element signature="e#17095#17266#0" />
-            <element signature="e#17314#17637#0" />
-            <element signature="e#17684#18067#0" />
-            <element signature="e#18062#18869#0" />
-            <element signature="e#19143#19422#0" />
-            <element signature="e#18659#18806#0" />
-            <element signature="e#18746#18806#0" />
-            <element signature="e#19491#20076#0" />
-            <element signature="e#19656#20073#0" />
-            <element signature="e#25362#25538#0" />
-            <element signature="e#22875#23245#0" />
-            <element signature="e#25212#25857#0" />
-            <element signature="e#24041#24075#0" />
-            <element signature="e#24149#24811#0" />
-            <element signature="e#24893#25195#0" />
-            <element signature="e#30085#30213#0" />
-            <element signature="e#30246#30371#0" />
-            <element signature="e#30431#31688#0" />
-            <element signature="e#30431#31081#1" />
-            <element signature="e#31138#31141#0" />
-            <marker date="1563813420586" expanded="true" signature="2218:2318" ph="..." />
-            <marker date="1563813420586" expanded="true" signature="7112:8117" ph="..." />
-            <marker date="1563813420586" expanded="false" signature="7130:8117" ph="..." />
-            <marker date="1563813420586" expanded="false" signature="7144:8077" ph="..." />
-            <marker date="1563813420586" expanded="false" signature="12290:13155" ph="..." />
-            <marker date="1563813420586" expanded="false" signature="24605:25732" ph="..." />
-            <marker date="1563813420586" expanded="false" signature="31409:33542" ph="..." />
+            <element signature="e#0#9#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/DeepLearningPreProcessModule/CMakeLists.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="170">
+          <caret line="10" column="3" selection-start-line="10" selection-start-column="3" selection-end-line="10" selection-end-column="3" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/CMakeLists.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="153">
+          <caret line="9" column="77" selection-start-line="9" selection-start-column="27" selection-end-line="9" selection-end-column="77" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/DeepLearningPreProcessModule/__init__.py">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://$PROJECT_DIR$/DeepLearningPreProcessModule/InterfaceTools.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="34">
+          <caret line="2" selection-start-line="2" selection-end-line="2" />
+          <folding>
+            <element signature="e#0#10#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/DeepLearningPreProcessModule/DeepLearningPreProcessModule.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="136">
+          <caret line="8" lean-forward="true" selection-start-line="8" selection-end-line="8" />
+          <folding>
+            <element signature="e#0#14#0" expanded="true" />
+            <element signature="e#33733#35578#0" />
           </folding>
         </state>
       </provider>

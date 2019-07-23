@@ -30,6 +30,7 @@
           <option value="slicer.*" />
           <option value="qt.*" />
           <option value="vtk.*" />
+          <option value="Elastix" />
         </list>
       </option>
     </inspection_tool>
