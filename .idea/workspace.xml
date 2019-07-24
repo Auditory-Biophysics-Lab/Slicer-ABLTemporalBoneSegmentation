@@ -2,24 +2,11 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="f08bb156-2c28-4f65-9fa3-faa143f298d2" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/DeepLearningPreProcessModule/InterfaceTools.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/DeepLearningPreProcessModule/Utilities/__init__.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/CMakeLists.txt" beforeDir="false" afterPath="$PROJECT_DIR$/CMakeLists.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/DeepLearningPreProcessModule.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Resources/Atlases/1512L_AtlasTemplate.mha" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Resources/Atlases/1512R_Clinical_Aligned_Test_Input.nrrd" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Resources/Atlases/Atlas_L.mha" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Resources/Atlases/Atlas_R.mha" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Resources/Atlases/Fiducial_L.fcsv" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Resources/Atlases/Fiducial_R.fcsv" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Resources/Icons/DeepLearningPreProcessModule.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Resources/Icons/check.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Resources/Icons/fiducial.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Resources/Icons/fit.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Testing/CMakeLists.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Testing/Python/CMakeLists.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/uiTools.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DeepLearningPreProcessModule/DeepLearningPreProcessModule.py" beforeDir="false" afterPath="$PROJECT_DIR$/DeepLearningPreProcessModule/DeepLearningPreProcessModule.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/DeepLearningPreProcessModule/InterfaceTools.py" beforeDir="false" afterPath="$PROJECT_DIR$/DeepLearningPreProcessModule/Utilities/InterfaceTools.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -41,63 +28,6 @@
     <expand />
     <select />
   </component>
-  <component name="FileEditorManager">
-    <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/README.md">
-          <provider selected="true" editor-type-id="split-provider[text-editor;markdown-preview-editor]">
-            <state split_layout="SPLIT">
-              <first_editor />
-              <second_editor />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/DeepLearningPreProcessModule/DeepLearningPreProcessModule.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="136">
-              <caret line="8" lean-forward="true" selection-start-line="8" selection-end-line="8" />
-              <folding>
-                <element signature="e#0#14#0" expanded="true" />
-                <element signature="e#33733#35578#0" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/DeepLearningPreProcessModule/InterfaceTools.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="34">
-              <caret line="2" selection-start-line="2" selection-end-line="2" />
-              <folding>
-                <element signature="e#0#10#0" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/DeepLearningPreProcessModule/CMakeLists.txt">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="170">
-              <caret line="10" column="3" selection-start-line="10" selection-start-column="3" selection-end-line="10" selection-end-column="3" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/CMakeLists.txt">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="153">
-              <caret line="9" column="77" selection-start-line="9" selection-start-column="27" selection-end-line="9" selection-end-column="77" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-    </leaf>
-  </component>
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
       <list>
@@ -107,102 +37,42 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>vtkMRMLTransformNode</find>
-      <find>SetNthFiducialLocked</find>
-      <find>locked</find>
-      <find>table</find>
-      <find>name</find>
-      <find>GetName</find>
-      <find>checked</find>
-      <find>fiducialTransformNode</find>
-      <find>resample_image</find>
-      <find>pull_node_resample_push</find>
-      <find>check_input_complete</find>
-      <find>vtkMRMLScalarVolumeNode</find>
-      <find>fiducialSet.co</find>
-      <find>fiducialSet.</find>
-      <find>check_fiducials_complete</find>
-      <find>resampleSection</find>
-      <find>self.rigitLab</find>
-      <find>Section.</find>
-      <find>self.outp</find>
-      <find>self.outputSection</find>
-      <find>label</find>
-      <find>lab`</find>
-      <find>TODO</find>
-      <find>print(out</find>
-      <find>fiducialSet =</find>
-      <find>self.inputselector.set</find>
-      <find>rigid</find>
-      <find>itk</find>
       <find>self.outputSelector.connect</find>
       <find>spin_box</find>
+      <find>setName</find>
+      <find>Output Volume</find>
+      <find>self.outPutSelector</find>
+      <find>self.inputSelector</find>
+      <find>self.</find>
+      <find>CurrentNode</find>
+      <find>outputSelector.CurrentNode</find>
+      <find>setCurrentNode</find>
+      <find>inputNode</find>
+      <find>outputNode</find>
+      <find>self.outputNode</find>
+      <find>side_indicator</find>
+      <find>re</find>
+      <find>re.</find>
+      <find>re.se</find>
+      <find>currentNodeId</find>
+      <find>ID</find>
+      <find>scene</find>
+      <find>initialize_fiducial_set</find>
+      <find>.currentNode().Get</find>
+      <find>currentNode().</find>
+      <find>GetSpacing()</find>
+      <find>print\</find>
+      <find>print</find>
+      <find>click_input_selector</find>
+      <find>check_input_complete</find>
+      <find>update_slicer_view</find>
+      <find>click_fiducial_overlay</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="IdeDocumentHistory">
-    <option name="CHANGED_PATHS">
-      <list>
-        <option value="$PROJECT_DIR$/UITools.py" />
-        <option value="$PROJECT_DIR$/UiTools.py" />
-        <option value="$PROJECT_DIR$/../AValue3DSlicerModule/AValue3DSlicerModule.py" />
-        <option value="$PROJECT_DIR$/DeepLearningPreProcessModule.py" />
-        <option value="$PROJECT_DIR$/uiTools.py" />
-        <option value="$PROJECT_DIR$/DeepLearningPreProcessModule/uiTools.py" />
-        <option value="$PROJECT_DIR$/DeepLearningPreProcessModule/CMakeLists.txt" />
-        <option value="$PROJECT_DIR$/CMakeLists.txt" />
-        <option value="$PROJECT_DIR$/DeepLearningPreProcessModule/Utilities/UiTools.py" />
-        <option value="$PROJECT_DIR$/DeepLearningPreProcessModule/Utilities/UI.py" />
-        <option value="$PROJECT_DIR$/DeepLearningPreProcessModule/DeepLearningPreProcessModule.py" />
-        <option value="$PROJECT_DIR$/DeepLearningPreProcessModule/InterfaceTools.py" />
-      </list>
-    </option>
-  </component>
-  <component name="ProjectFrameBounds" extendedState="6">
-    <option name="x" value="215" />
-    <option name="y" value="46" />
-    <option name="width" value="869" />
-    <option name="height" value="784" />
-  </component>
-  <component name="ProjectView">
-    <navigator proportions="" version="1">
-      <foldersAlwaysOnTop value="true" />
-    </navigator>
-    <panes>
-      <pane id="Scope" />
-      <pane id="ProjectPane">
-        <subPane>
-          <expand>
-            <path>
-              <item name="AuditoryBiophysicsLab-DeepLearningPreProcessModule" type="b2602c69:ProjectViewProjectNode" />
-              <item name="AuditoryBiophysicsLab-DeepLearningPreProcessModule" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="AuditoryBiophysicsLab-DeepLearningPreProcessModule" type="b2602c69:ProjectViewProjectNode" />
-              <item name="AuditoryBiophysicsLab-DeepLearningPreProcessModule" type="462c0819:PsiDirectoryNode" />
-              <item name="DeepLearningPreProcessModule" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="AuditoryBiophysicsLab-DeepLearningPreProcessModule" type="b2602c69:ProjectViewProjectNode" />
-              <item name="AuditoryBiophysicsLab-DeepLearningPreProcessModule" type="462c0819:PsiDirectoryNode" />
-              <item name="DeepLearningPreProcessModule" type="462c0819:PsiDirectoryNode" />
-              <item name="Resources" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="AuditoryBiophysicsLab-DeepLearningPreProcessModule" type="b2602c69:ProjectViewProjectNode" />
-              <item name="AuditoryBiophysicsLab-DeepLearningPreProcessModule" type="462c0819:PsiDirectoryNode" />
-              <item name="DeepLearningPreProcessModule" type="462c0819:PsiDirectoryNode" />
-              <item name="Resources" type="462c0819:PsiDirectoryNode" />
-              <item name="Atlases" type="462c0819:PsiDirectoryNode" />
-            </path>
-          </expand>
-          <select />
-        </subPane>
-      </pane>
-    </panes>
-  </component>
+  <component name="ProjectId" id="1OT9jzQtyttDP0oqVSBQSYvPAZL" />
   <component name="PropertiesComponent">
     <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />
@@ -213,7 +83,9 @@
   </component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\Evan\Documents\AuditoryBiophysicsLab-DeepLearningPreProcessModule\DeepLearningPreProcessModule\Utilities" />
       <recent name="C:\Users\Evan\Documents\AuditoryBiophysicsLab-DeepLearningPreProcessModule\DeepLearningPreProcessModule" />
+      <recent name="C:\Users\Evan\Documents\AuditoryBiophysicsLab-DeepLearningPreProcessModule\DeepLearningPreProcessModule\Resources\Utilities" />
     </key>
   </component>
   <component name="RunDashboard">
@@ -288,12 +160,10 @@
       <workItem from="1561385598895" duration="166085000" />
       <workItem from="1562698901749" duration="9841000" />
       <workItem from="1562855356021" duration="74719000" />
-      <workItem from="1563820532694" duration="6152000" />
+      <workItem from="1563820532694" duration="26878000" />
+      <workItem from="1563990867805" duration="55000" />
     </task>
     <servers />
-  </component>
-  <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="259907000" />
   </component>
   <component name="TodoView">
     <todo-panel id="selected-file">
@@ -304,35 +174,19 @@
       <is-autoscroll-to-source value="true" />
     </todo-panel>
   </component>
-  <component name="ToolWindowManager">
-    <frame x="-8" y="22" width="1936" height="1066" extended-state="6" />
-    <editor active="true" />
-    <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" sideWeight="0.4985507" visible="true" weight="0.15458423" />
-      <window_info id="Structure" order="1" sideWeight="0.5014493" side_tool="true" weight="0.22882736" />
-      <window_info id="Favorites" order="2" side_tool="true" />
-      <window_info anchor="bottom" id="Message" order="0" />
-      <window_info anchor="bottom" id="Find" order="1" weight="0.32900432" />
-      <window_info anchor="bottom" id="Run" order="2" />
-      <window_info anchor="bottom" id="Debug" order="3" sideWeight="0.49946696" weight="0.187567" />
-      <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
-      <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
-      <window_info anchor="bottom" id="TODO" order="6" weight="0.3290461" />
-      <window_info anchor="bottom" id="Docker" order="7" show_stripe_button="false" />
-      <window_info anchor="bottom" id="Version Control" order="8" />
-      <window_info anchor="bottom" id="Database Changes" order="9" />
-      <window_info anchor="bottom" id="Event Log" order="10" sideWeight="0.50053304" side_tool="true" weight="0.624866" />
-      <window_info anchor="bottom" id="Terminal" order="11" weight="0.3290461" />
-      <window_info anchor="bottom" id="Python Console" order="12" weight="0.3290461" />
-      <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
-      <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
-      <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
-      <window_info anchor="right" id="SciView" order="3" weight="0.32995737" />
-      <window_info anchor="right" id="Database" order="4" weight="0.32981315" />
-    </layout>
-  </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="1" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -346,121 +200,7 @@
     </breakpoint-manager>
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/DeepLearningPreProcessModule$.coverage" NAME=" Coverage Results" MODIFIED="1561385525895" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
     <SUITE FILE_PATH="coverage/DeepLearningPreProcessModule$DeepLearningPreProcessModule.coverage" NAME="DeepLearningPreProcessModule Coverage Results" MODIFIED="1561385620629" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-  </component>
-  <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/17Feb2019ProgressScreenshot.JPG" />
-    <entry file="file://$PROJECT_DIR$/20Feb2019ProgressScreenshot.JPG" />
-    <entry file="file://$PROJECT_DIR$/Resources/Icons/DeepLearningPreProcessModule.png">
-      <provider selected="true" editor-type-id="images" />
-    </entry>
-    <entry file="file://C:/Program Files/Slicer 4.10.2/bin/Python/slicer/util.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="221">
-          <caret line="622" selection-start-line="622" selection-end-line="622" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/../DeepLearningPreProcessModule - Copy/DeepLearningPreProcessModule.py" />
-    <entry file="file://C:/Program Files/Slicer 4.10.2/lib/Python/Lib/site-packages/SimpleITK/SimpleITK.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="170">
-          <caret line="57937" column="8" selection-start-line="57937" selection-start-column="8" selection-end-line="57937" selection-end-column="8" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/../AlignCrop3DSlicerModule/AlignCrop3DSlicerModule.py" />
-    <entry file="file://$PROJECT_DIR$/Testing/CMakeLists.txt">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file://$USER_HOME$/.PyCharm2019.1/system/python_stubs/1363895398/__builtin__.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="32464">
-          <caret line="2624" column="8" selection-start-line="2624" selection-start-column="8" selection-end-line="2624" selection-end-column="8" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/../AValue3DSlicerModule/AValue3DSlicerModule.py" />
-    <entry file="file://C:/Program Files/Slicer 4.10.2/bin/Python/slicer/ScriptedLoadableModule.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-922">
-          <caret line="79" column="34" lean-forward="true" selection-start-line="79" selection-start-column="34" selection-end-line="79" selection-end-column="34" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/uiTools.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="51">
-          <caret line="3" selection-start-line="3" selection-end-line="3" />
-          <folding>
-            <element signature="e#0#9#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/DeepLearningPreProcessModule.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="136">
-          <caret line="8" column="16" selection-start-line="8" selection-start-column="16" selection-end-line="8" selection-end-column="16" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/README.md">
-      <provider selected="true" editor-type-id="split-provider[text-editor;markdown-preview-editor]">
-        <state split_layout="SPLIT">
-          <first_editor />
-          <second_editor />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/DeepLearningPreProcessModule/uiTools.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="51">
-          <caret line="3" selection-start-line="3" selection-end-line="50" />
-          <folding>
-            <element signature="e#0#9#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/DeepLearningPreProcessModule/CMakeLists.txt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="170">
-          <caret line="10" column="3" selection-start-line="10" selection-start-column="3" selection-end-line="10" selection-end-column="3" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/CMakeLists.txt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="153">
-          <caret line="9" column="77" selection-start-line="9" selection-start-column="27" selection-end-line="9" selection-end-column="77" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/DeepLearningPreProcessModule/__init__.py">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file://$PROJECT_DIR$/DeepLearningPreProcessModule/InterfaceTools.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="34">
-          <caret line="2" selection-start-line="2" selection-end-line="2" />
-          <folding>
-            <element signature="e#0#10#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/DeepLearningPreProcessModule/DeepLearningPreProcessModule.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="136">
-          <caret line="8" lean-forward="true" selection-start-line="8" selection-end-line="8" />
-          <folding>
-            <element signature="e#0#14#0" expanded="true" />
-            <element signature="e#33733#35578#0" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
+    <SUITE FILE_PATH="coverage/DeepLearningPreProcessModule$.coverage" NAME=" Coverage Results" MODIFIED="1561385525895" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
   </component>
 </project>
