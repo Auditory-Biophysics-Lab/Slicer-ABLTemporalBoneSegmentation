@@ -36,8 +36,10 @@ class DeepLearningPreProcessModule(ScriptedLoadableModule):
 # User Interface Build
 class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
     # Data members --------------
+    # TODO Comment
     atlasNode = None
     atlasFiducialNode = None
+    maskNode = None
     inputFiducialNode = None
     fiducialSet = []
     intermediateNode = None
@@ -58,7 +60,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
     fiducialTabs = None
     fiducialTabsLastIndex = None
     fiducialApplyButton = None
-    fiducialOverlayCheckbox = None
+    fiducialAtlasOverlay = None
     fiducialHardenButton = None
     rigidApplyButton = None
     movingSelector = None
@@ -77,7 +79,6 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         self.inputSelector.addEnabled = False
         self.inputSelector.renameEnabled = True
         self.inputSelector.noneEnabled = True
-        self.inputSelector.showHidden = False
         self.inputSelector.setMRMLScene(slicer.mrmlScene)
         self.inputSelector.connect("currentNodeChanged(bool)", self.click_input_selector)
         self.inputSelector.setToolTip("Select an existing input volume. If the volume's name start with numbers followed by an 'L' or an 'R', the side will be automatically selected.")
@@ -101,18 +102,19 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         self.movingSelector.addEnabled = False
         self.movingSelector.renameEnabled = True
         self.movingSelector.noneEnabled = False
-        self.movingSelector.removeEnabled = False
+        self.movingSelector.removeEnabled = True
         self.movingSelector.enabled = False
         self.movingSelector.connect("currentNodeChanged(bool)", self.click_moving_selector)
         # self.movingSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.click_input_selector)
 
     def init_resample_tools(self):
         self.resampleInfoLabel = qt.QLabel("Load in a sample to enable spacing resample.")
+        self.resampleInfoLabel.setWordWrap(True)
         self.resampleInterpolation = qt.QComboBox()
         for i in supportedResampleInterpolations: self.resampleInterpolation.addItem(i["title"])
-        self.resampleSpacingXBox = InterfaceTools.build_spin_box(0, 1000, self.click_spacing_spin_box)
-        self.resampleSpacingYBox = InterfaceTools.build_spin_box(0, 1000, self.click_spacing_spin_box)
-        self.resampleSpacingZBox = InterfaceTools.build_spin_box(0, 1000, self.click_spacing_spin_box)
+        self.resampleSpacingXBox = InterfaceTools.build_spin_box(1, 9999, self.click_spacing_spin_box)
+        self.resampleSpacingYBox = InterfaceTools.build_spin_box(1, 9999, self.click_spacing_spin_box)
+        self.resampleSpacingZBox = InterfaceTools.build_spin_box(1, 9999, self.click_spacing_spin_box)
         self.resampleButton = qt.QPushButton("Resample Output to New Volume")
         self.resampleButton.setFixedHeight(23)
         self.resampleButton.enabled = False
@@ -125,9 +127,9 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         self.fiducialApplyButton = qt.QPushButton("Apply")
         self.fiducialApplyButton.connect('clicked(bool)', self.click_fiducial_apply)
         self.fiducialApplyButton.enabled = False
-        self.fiducialOverlayCheckbox = qt.QCheckBox("Overlay")
-        self.fiducialOverlayCheckbox.connect('toggled(bool)', self.click_fiducial_overlay)
-        self.fiducialOverlayCheckbox.enabled = False
+        self.fiducialAtlasOverlay = qt.QCheckBox("Overlay Change")
+        self.fiducialAtlasOverlay.connect('toggled(bool)', self.click_fiducial_overlay)
+        self.fiducialAtlasOverlay.enabled = False
         self.fiducialHardenButton = qt.QPushButton("Harden")
         self.fiducialHardenButton.connect('clicked(bool)', self.click_fiducial_harden)
         self.fiducialHardenButton.enabled = False
@@ -153,16 +155,18 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         self.layout.addStretch()
 
         # testing TODO remove
-        slicer.mrmlScene.Clear()
-        path = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Atlases/1512R_Clinical_Aligned_Test_Input.nrrd"
-        node = slicer.util.loadVolume(path, returnNode=True)[1]
-        self.inputSelector.setCurrentNode(node)
+        # slicer.mrmlScene.Clear()
+        # path = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Atlases/1512R_Clinical_Aligned_Test_Input.nrrd"
+        # node = slicer.util.loadVolume(path, returnNode=True)[1]
+        # self.inputSelector.setCurrentNode(node)
         # end testing area
 
     def build_volume_tools(self):
-        section = InterfaceTools.build_dropdown("Volume Selection")
+        section = InterfaceTools.build_dropdown("Volume Tools")
         layout = qt.QFormLayout(section)
-        layout.addRow(qt.QLabel("Select an input volume to begin, then ensure the correct side is selected."))
+        label = qt.QLabel("Select an input volume to begin, then ensure the correct side is selected.")
+        label.setWordWrap(True)
+        layout.addRow(label)
         box = qt.QHBoxLayout()
         box.addWidget(self.inputSelector)
         box.addWidget(self.fitAllButton)
@@ -171,6 +175,9 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         sideSelection.addWidget(self.leftBoneCheckBox)
         sideSelection.addWidget(self.rightBoneCheckBox)
         layout.addRow("Side Selection: ", sideSelection)
+        label = qt.QLabel("A moving volume is generated from the input and displayed on the top three views. It will update as transforms are applied.")
+        label.setWordWrap(True)
+        layout.addRow(label)
         layout.addRow("Moving Volume: ", self.movingSelector)
         layout.setMargin(10)
         return section
@@ -210,7 +217,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         layout.addWidget(self.fiducialTabs)
         row = qt.QHBoxLayout()
         row.addWidget(self.fiducialApplyButton)
-        row.addWidget(self.fiducialOverlayCheckbox)
+        row.addWidget(self.fiducialAtlasOverlay)
         row.addWidget(self.fiducialHardenButton)
         layout.addLayout(row)
         layout.setMargin(10)
@@ -244,10 +251,10 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         side_indicator = 'R' if self.rightBoneCheckBox.isChecked() else 'L'
         # check if side has been switched
         if self.atlasNode is not None and not self.atlasNode.GetName().startswith('Atlas_' + side_indicator):
-            self.atlasNode = self.inputFiducialNode = None
+            self.atlasNode = self.atlasFiducialNode = self.inputFiducialNode = None
         # check if we need an atlas imported
         if self.atlasNode is None:
-            self.atlasNode, self.atlasFiducialNode = DeepLearningPreProcessModuleLogic().load_atlas_and_fiducials(side_indicator)
+            self.atlasNode, self.atlasFiducialNode, self.maskNode = DeepLearningPreProcessModuleLogic().load_atlas_and_fiducials_and_mask(side_indicator)
             self.fiducialSet = DeepLearningPreProcessModuleLogic().initialize_fiducial_set(self.atlasFiducialNode)
             self.fiducialTabs.clear()
             for f in self.fiducialSet:
@@ -305,7 +312,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         slicer.app.layoutManager().sliceWidget('Yellow').sliceLogic().GetSliceCompositeNode().SetForegroundVolumeID(node_id)
         slicer.app.layoutManager().sliceWidget('Green').sliceLogic().GetSliceCompositeNode().SetForegroundVolumeID(node_id)
         if self.intermediateNode is not None:
-            o = 0.4 if self.fiducialOverlayCheckbox.isChecked() else 0
+            o = 0.4 if self.fiducialAtlasOverlay.isChecked() else 0
             slicer.app.layoutManager().sliceWidget('Red').sliceLogic().GetSliceCompositeNode().SetForegroundOpacity(o)
             slicer.app.layoutManager().sliceWidget('Yellow').sliceLogic().GetSliceCompositeNode().SetForegroundOpacity(o)
             slicer.app.layoutManager().sliceWidget('Green').sliceLogic().GetSliceCompositeNode().SetForegroundOpacity(o)
@@ -328,9 +335,6 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
     def update_rigid_progress(self, text):
         print(text)
         slicer.app.processEvents()  # force update
-
-    def update_output(self):
-        pass
 
     # ui button actions ------------------------------------------------------------------------------
     def click_input_selector(self, validity):
@@ -408,11 +412,11 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
                 self.intermediateNode = slicer.vtkMRMLScalarVolumeNode()
                 slicer.mrmlScene.AddNode(self.intermediateNode)
             self.intermediateNode.Copy(self.inputSelector.currentNode())
-            # self.intermediateNode.SetName(self.movingSelector.currentNode().GetName() + " +Fiducial-Transform")
+            self.intermediateNode.SetName(self.movingSelector.currentNode().GetName() + " +Fiducial")
             self.intermediateNode = DeepLearningPreProcessModuleLogic().apply_fiducial_registration(self.intermediateNode, self.atlasFiducialNode, self.inputFiducialNode)
             self.fiducialApplyButton.setEnabled(True)
-            self.fiducialOverlayCheckbox.setEnabled(True)
-            self.fiducialOverlayCheckbox.setChecked(True)
+            self.fiducialAtlasOverlay.setEnabled(True)
+            self.fiducialAtlasOverlay.setChecked(True)
             self.fiducialHardenButton.setEnabled(True)
         self.process_transform(function)
 
@@ -425,13 +429,15 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
             DeepLearningPreProcessModuleLogic().harden_fiducial_registration(self.intermediateNode)
             self.movingSelector.setCurrentNode(self.intermediateNode)
             self.intermediateNode = None
-            self.fiducialOverlayCheckbox.setEnabled(False)
-            self.fiducialOverlayCheckbox.setChecked(False)
+            self.fiducialAtlasOverlay.setEnabled(False)
+            self.fiducialAtlasOverlay.setChecked(False)
         self.process_transform(function)
 
     def click_rigid_apply(self):
         def function():
-            self.movingSelector.setCurrentNode(DeepLearningPreProcessModuleLogic().apply_rigid_registration(self.atlasNode, self.movingSelector.currentNode(), self.update_rigid_progress))
+            self.rigidApplyButton.setEnabled(False)
+            self.movingSelector.setCurrentNode(DeepLearningPreProcessModuleLogic().apply_rigid_registration(self.atlasNode, self.movingSelector.currentNode(), self.maskNode, self.update_rigid_progress))
+            self.rigidApplyButton.setEnabled(True)
         self.process_transform(function)
 
     # TODO remove
@@ -485,16 +491,17 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
         return fiducial_set
 
     @staticmethod
-    def load_atlas_and_fiducials(side_indicator):
+    def load_atlas_and_fiducials_and_mask(side_indicator):
         framePath = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Atlases/"
-        atlasPath = framePath + 'Atlas_' + side_indicator + '.mha'
-        fiducialPath = framePath + 'Fiducial_' + side_indicator + '.fcsv'
-        atlasNode = slicer.util.loadVolume(atlasPath, returnNode=True)[1]
-        atlasNode.HideFromEditors = True
-        atlasFiducialNode = slicer.util.loadMarkupsFiducialList(fiducialPath, returnNode=True)[1]
+        atlasNode = slicer.util.loadVolume(framePath + 'Atlas_' + side_indicator + '.mha', returnNode=True)[1]
+        atlasNode.HideFromEditorsOn()
+        atlasFiducialNode = slicer.util.loadMarkupsFiducialList(framePath + 'Fiducial_' + side_indicator + '.fcsv', returnNode=True)[1]
         atlasFiducialNode.SetName("Atlas Fiducials")
         atlasFiducialNode.SetLocked(True)
-        return atlasNode, atlasFiducialNode
+        atlasFiducialNode.HideFromEditorsOn()
+        maskNode = slicer.util.loadVolume(framePath + 'CochleaRegistrationMask_' + side_indicator + '.nrrd', returnNode=True)[1]
+        # maskNode.HideFromEditorsOn()
+        return atlasNode, atlasFiducialNode, maskNode
 
     @staticmethod
     def get_um_spacing(node):
@@ -547,7 +554,6 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
         })
         print(output)
         # apply
-        moving_node.SetName(moving_node.GetName() + " +Fiducial-Transform")
         moving_node.ApplyTransform(transform.GetTransformToParent())
         # clean up
         slicer.mrmlScene.RemoveNode(transform)
@@ -559,7 +565,7 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
         fiducial_transformed_node.HardenTransform()
 
     @staticmethod
-    def apply_rigid_registration(atlas_node, moving_node, log_callback):
+    def apply_rigid_registration(atlas_node, moving_node, mask_node, log_callback):
         logic = Elastix.ElastixLogic()
         logic.logStandardOutput = True
         logic.logCallback = log_callback
@@ -567,9 +573,11 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
             fixedVolumeNode=atlas_node,
             movingVolumeNode=moving_node,
             parameterFilenames=logic.getRegistrationPresets()[1][5],
-            outputVolumeNode=moving_node
+            outputVolumeNode=moving_node,
+            fixedVolumeMaskNode=mask_node,
+            movingVolumeMaskNode=mask_node
         )
-        moving_node.SetName(moving_node.GetName() + " +Rigid-Transform")
+        moving_node.SetName(moving_node.GetName() + " +Rigid")
         return moving_node
 
     # TODO remove
