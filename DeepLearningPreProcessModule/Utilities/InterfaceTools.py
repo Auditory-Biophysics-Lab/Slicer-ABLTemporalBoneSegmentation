@@ -24,7 +24,7 @@ class InterfaceTools:
         return box
 
     @staticmethod
-    def build_fiducial_tab(fiducial, on_click):
+    def build_fiducial_tab(fiducial, click_set, click_clear):
         table = qt.QTableWidget(1, 3)
         table.setSelectionBehavior(qt.QAbstractItemView.SelectRows)
         table.setFixedHeight(46)
@@ -36,20 +36,17 @@ class InterfaceTools:
             item.setFlags(qt.Qt.ItemIsSelectable)
             table.setItem(0, i, item)
         table.setVerticalHeaderLabels([''])
-        # table.verticalHeader().setSectionResizeMode(qt.QHeaderView.Stretch)
         table.verticalHeader().setFixedWidth(0)
-        # table.verticalHeader().setDefaultAlignment(qt.Qt.AlignCenter)
         label = (fiducial["label"][:20] + '..') if len(fiducial["label"]) > 20 else fiducial["label"]
         setButton = qt.QPushButton("Set \n" + label + "\nFiducial")
-        setButton.setFixedSize(130, 46)
-
-        def set_fiducial(): on_click(fiducial)
-        setButton.connect('clicked(bool)', set_fiducial)
-
+        setButton.setFixedSize(150, 46)
+        setButton.connect('clicked(bool)', lambda: click_set(fiducial))
+        clearButton = qt.QPushButton("Clear")
+        clearButton.setFixedSize(46, 46)
+        clearButton.connect('clicked(bool)', lambda: click_clear(fiducial))
         tab = qt.QWidget()
-        layout = qt.QHBoxLayout()
-        # layout.setFixedHeight(200)
-        tab.setLayout(layout)
-        tab.layout().addWidget(setButton)
-        tab.layout().addWidget(table)
+        layout = qt.QHBoxLayout(tab)
+        layout.addWidget(setButton)
+        layout.addWidget(clearButton)
+        layout.addWidget(table)
         return tab, table
