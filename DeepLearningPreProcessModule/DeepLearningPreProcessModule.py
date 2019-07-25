@@ -43,8 +43,8 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
     inputFiducialNode = None
     fiducialSet = []
     intermediateNode = None
-    fiducialTransform = None    #TODO use
-    rigidTransform = None       #TODO use
+    fiducialTransform = None    # TODO use
+    rigidTransform = None       # TODO use
 
     # UI members --------------
     sectionsList = []
@@ -65,6 +65,8 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
     fiducialRevertButton = None
     fiducialAtlasOverlay = None
     fiducialHardenButton = None
+    rigidStatus = None
+    rigidProgress = None
     rigidApplyButton = None
     movingSelector = None
 
@@ -147,6 +149,12 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         self.fiducialPlacer.connect('activeMarkupsFiducialPlaceModeChanged(bool)', self.click_fiducial_placement)
 
     def init_rigid_registration(self):
+        self.rigidStatus = qt.QLabel("Status:")
+        p = qt.QPalette()
+        p.setColor(qt.QPalette.WindowText, qt.Qt.gray)
+        self.rigidStatus.setPalette(p)
+        self.rigidProgress = qt.QLabel("Progress:")
+        self.rigidProgress.setPalette(p)
         self.rigidApplyButton = qt.QPushButton("Apply\n Rigid Registration")
         self.rigidApplyButton.connect('clicked(bool)', self.click_rigid_apply)
 
@@ -234,11 +242,13 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
     def build_rigid_registration(self):
         section = InterfaceTools.build_dropdown("Rigid Registration", disabled=True)
         row = qt.QHBoxLayout()
-        # row.addWidget(qt.QLabel("0.01 sample percentage\n30000 iterations\n0.00001 minimum step length"))
-        # row.addWidget(qt.QLabel("2 maximum step length\n1 translation scale\n"))
-        # row.addWidget(qt.QLabel("'normalized correlation' cost metric\n0.7 relaxation factor.\n"))
+        # row.addWidget(qt.QLabel("Parameters: Elastix Rigid Registration"))
+        # row.addWidget(self.rigidStatus)
         layout = qt.QVBoxLayout(section)
-        layout.addLayout(row)
+        # layout.addLayout(row)
+        layout.addWidget(qt.QLabel("Parameters: Elastix Rigid Registration"))
+        layout.addWidget(self.rigidStatus)
+        layout.addWidget(self.rigidProgress)
         layout.addWidget(self.rigidApplyButton)
         layout.setMargin(10)
         return section
@@ -342,6 +352,12 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
 
     def update_rigid_progress(self, text):
         print(text)
+        # TODO trim text
+        self.rigidStatus.text = "Status: " + text
+        progress = None
+        # if (text.cont)
+
+        if progress is not None: self.rigidStatus.text = "Progress: " + progress
         slicer.app.processEvents()  # force update
 
     # ui button actions ------------------------------------------------------------------------------
@@ -402,6 +418,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         self.fiducialPlacer.setPlaceModeEnabled(True)
 
     def click_fiducial_clear_button(self, fiducial):
+        # TODO remove from input fiducial node
         fiducial["input_indices"] = [0, 0, 0]
         self.update_fiducial_table()
 
