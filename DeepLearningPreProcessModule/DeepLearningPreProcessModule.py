@@ -30,7 +30,7 @@ class DeepLearningPreProcessModule(ScriptedLoadableModule):
         self.parent.dependencies = []
         self.parent.contributors = ["Luke Helpard (Western University) and Evan Simpson (Western University)"]
         self.parent.helpText = "" + self.getDefaultModuleDocumentationLink()
-        self.parent.acknowledgementText = "This file was originally developed by Luke Helpard and Evan Simpson at The University of Western Ontario."
+        self.parent.acknowledgementText = "This file was originally developed by Luke Helpard and Evan Simpson at The University of Western Ontario in the HML/SKA Auditory Biophysics Lab."
 
 
 # User Interface Build
@@ -153,8 +153,11 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         p = qt.QPalette()
         p.setColor(qt.QPalette.WindowText, qt.Qt.gray)
         self.rigidStatus.setPalette(p)
-        self.rigidProgress = qt.QLabel("Progress:")
-        self.rigidProgress.setPalette(p)
+        self.rigidProgress = qt.QProgressBar()
+        self.rigidProgress.minimum = 0
+        self.rigidProgress.maximum = 100
+        self.rigidProgress.value = 0
+        self.rigidProgress.visible = False
         self.rigidApplyButton = qt.QPushButton("Apply\n Rigid Registration")
         self.rigidApplyButton.connect('clicked(bool)', self.click_rigid_apply)
 
@@ -264,7 +267,6 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
             self.update_sections_enabled(enabled=False)
 
     # input complete - fetch atlas, fiducials, and populate table
-    # TODO move to logic?
     def finalize_input(self):
         side_indicator = 'R' if self.rightBoneCheckBox.isChecked() else 'L'
         # check if side has been switched
@@ -273,18 +275,11 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         # check if we need an atlas imported
         if self.atlasNode is None:
             self.atlasNode, self.atlasFiducialNode, self.maskNode = DeepLearningPreProcessModuleLogic().load_atlas_and_fiducials_and_mask(side_indicator)
-            self.fiducialSet = DeepLearningPreProcessModuleLogic().initialize_fiducial_set(self.atlasFiducialNode)
+            self.inputFiducialNode, self.fiducialSet = DeepLearningPreProcessModuleLogic().initialize_fiducial_set(self.atlasFiducialNode, self.fiducialPlacer)
             self.fiducialTabs.clear()
             for f in self.fiducialSet:
                 tab, f["table"] = InterfaceTools.build_fiducial_tab(f, self.click_fiducial_set_button, self.click_fiducial_clear_button)
                 self.fiducialTabs.addTab(tab, f["label"])
-        # check if we need a fiducial node
-        if self.inputFiducialNode is None:
-            self.inputFiducialNode = slicer.vtkMRMLMarkupsFiducialNode()
-            self.inputFiducialNode.SetName("Fiducial Input")
-            self.inputFiducialNode.SetLocked(True)      # TODO remove and implement dragging node
-            slicer.mrmlScene.AddNode(self.inputFiducialNode)
-            self.fiducialPlacer.setCurrentNode(self.inputFiducialNode)
         # set spacing
         spacing = DeepLearningPreProcessModuleLogic().get_um_spacing(self.inputSelector.currentNode().GetSpacing())
         self.resampleInfoLabel.text = "The input volume was imported with a spacing of (X: " + str(spacing[0]) + "um,  Y: " + str(spacing[1]) + "um,  Z: " + str(spacing[2]) + "um)"
@@ -312,7 +307,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
             traceback.print_exc()
         finally:
             slicer.app.restoreOverrideCursor()
-            if corresponding_button is not None: corresponding_button.enabled = True
+            if corresponding_button is not None: corresponding_button.enabled = corresponding_button.visible = True
             self.update_slicer_view()
 
     # UI updating ------------------------------------------------------------------------------
@@ -353,11 +348,27 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
     def update_rigid_progress(self, text):
         print(text)
         # TODO trim text
-        self.rigidStatus.text = "Status: " + text
+        self.rigidStatus.text = 'Status: ' + (text[:60] + '..') if len(text) > 60 else text
         progress = None
-        # if (text.cont)
-
-        if progress is not None: self.rigidStatus.text = "Progress: " + progress
+        if text.startswith('Register volumes'): progress = 1
+        elif text.startswith('-fMask'): progress = 3
+        elif text.startswith('Reading images'): progress = 7
+        elif text.startswith('Time spent in resolution 0'): progress = 14
+        elif text.startswith('Time spent in resolution 1'): progress = 40
+        elif text.startswith('Time spent in resolution 2'): progress = 60
+        elif text.startswith('Time spent in resolution 3'): progress = 80
+        elif text.startswith('Applying final transform'): progress = 85
+        elif text.startswith('Time spent on saving the results'): progress = 90
+        elif text.startswith('Generate output'): progress = 93
+        elif text.startswith('Reading input image'): progress = 94
+        elif text.startswith('Resampling image and writing to disk'): progress = 96
+        elif text.startswith('Registration is completed'): progress = 100
+        if progress is not None: self.rigidProgress.value = progress
+        if progress is 100:
+            self.rigidProgress.visible = False
+            p = qt.QPalette()
+            p.setColor(qt.QPalette.WindowText, qt.Qt.green)
+            self.rigidStatus.setPalette(p)
         slicer.app.processEvents()  # force update
 
     # ui button actions ------------------------------------------------------------------------------
@@ -418,7 +429,10 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         self.fiducialPlacer.setPlaceModeEnabled(True)
 
     def click_fiducial_clear_button(self, fiducial):
-        # TODO remove from input fiducial node
+        for i in range(0, self.inputFiducialNode.GetNumberOfFiducials()):
+            if self.inputFiducialNode.GetNthFiducialLabel(i) == fiducial["label"]:
+                self.inputFiducialNode.RemoveMarkup(i)
+                break
         fiducial["input_indices"] = [0, 0, 0]
         self.update_fiducial_table()
 
@@ -428,6 +442,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
             self.fiducialTabsLastIndex = None
             fiducial = self.fiducialSet[self.fiducialTabs.currentIndex]
             nodeIndex = self.inputFiducialNode.GetNumberOfFiducials() - 1
+            # self.inputFiducialNode.GetNthDisplayNode(nodeIndex).SetColor(0, 1, 0)
             self.inputFiducialNode.SetNthFiducialLabel(nodeIndex, fiducial["label"])
             self.inputFiducialNode.GetNthFiducialPosition(nodeIndex, fiducial["input_indices"])
         self.update_fiducial_table()
@@ -462,6 +477,12 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
 
     def click_rigid_apply(self):
         def function():
+            p = qt.QPalette()
+            p.setColor(qt.QPalette.WindowText, qt.Qt.gray)
+            self.rigidStatus.setPalette(p)
+            self.rigidProgress.value = 0
+            self.rigidProgress.visible = True
+            self.rigidApplyButton.visible = False
             return DeepLearningPreProcessModuleLogic().apply_rigid_registration(self.atlasNode, self.movingSelector.currentNode(), self.maskNode, self.update_rigid_progress)
         self.process_transform(function, corresponding_button=self.rigidApplyButton, set_moving_volume=True)
 
@@ -507,13 +528,19 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
   """
 
     @staticmethod
-    def initialize_fiducial_set(atlas_fiducial_node):
+    def initialize_fiducial_set(atlas_fiducial_node, fiducial_placer):
         fiducial_set = []
         for i in range(0, atlas_fiducial_node.GetNumberOfFiducials()):
             f = {'label': atlas_fiducial_node.GetNthFiducialLabel(i), 'table': None, 'input_indices': [0, 0, 0], 'atlas_indices': [0, 0, 0]}
             atlas_fiducial_node.GetNthFiducialPosition(i, f['atlas_indices'])
             fiducial_set.append(f)
-        return fiducial_set
+        inputFiducialNode = slicer.vtkMRMLMarkupsFiducialNode()
+        inputFiducialNode.SetName("Fiducial Input")
+        inputFiducialNode.SetLocked(True)  # TODO remove and implement dragging node
+        slicer.mrmlScene.AddNode(inputFiducialNode)
+        inputFiducialNode.GetDisplayNode().SetColor(0.1, 0.7, 0.1)
+        fiducial_placer.setCurrentNode(inputFiducialNode)
+        return inputFiducialNode, fiducial_set
 
     @staticmethod
     def load_atlas_and_fiducials_and_mask(side_indicator):
@@ -576,11 +603,9 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
             'transformType'    : 'Rigid',
             "saveTransform"    : transform.GetID()
         })
-        print(output)
-        # apply
         moving_node.ApplyTransform(transform.GetTransformToParent())
         # clean up
-        slicer.mrmlScene.RemoveNode(transform)
+        # slicer.mrmlScene.RemoveNode(transform)
         slicer.mrmlScene.RemoveNode(trimmed_atlas_fiducial_node)
         return moving_node
 
@@ -591,6 +616,8 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
 
     @staticmethod
     def apply_rigid_registration(atlas_node, moving_node, mask_node, log_callback):
+        # transform_node = slicer.vtkMRMLTransformNode()
+        # slicer.mrmlScene.AddNode(transform_node)
         logic = Elastix.ElastixLogic()
         logic.logStandardOutput = True
         logic.logCallback = log_callback
@@ -599,9 +626,11 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
             movingVolumeNode=moving_node,
             parameterFilenames=logic.getRegistrationPresets()[1][5],
             outputVolumeNode=moving_node,
+            # outputTransformNode=transform_node,
             fixedVolumeMaskNode=mask_node,
             movingVolumeMaskNode=mask_node
         )
+        # moving_node.ApplyTransform(transform_node.GetTransformToParent())
         moving_node.SetName(moving_node.GetName() + " +Rigid")
         return moving_node
 
