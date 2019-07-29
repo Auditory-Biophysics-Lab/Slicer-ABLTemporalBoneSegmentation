@@ -52,6 +52,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
     fitAllButton = None
     leftBoneCheckBox = None
     rightBoneCheckBox = None
+    clearMarkupsFromSceneButton = None
     resampleInfoLabel = None
     resampleInterpolation = None
     resampleSpacingXBox = None
@@ -91,7 +92,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         icon = qt.QPixmap(path).scaled(qt.QSize(16, 16), qt.Qt.KeepAspectRatio, qt.Qt.SmoothTransformation)
         self.fitAllButton = qt.QToolButton()
         self.fitAllButton.setIcon(qt.QIcon(icon))
-        self.fitAllButton.setFixedHeight(22)
+        self.fitAllButton.setFixedHeight(23)
         self.fitAllButton.enabled = False
         self.fitAllButton.setToolTip("Fit all Slice Viewers to match the extent of the lowest non-Null volume layer.")
         self.fitAllButton.connect('clicked(bool)', self.click_fit_all_views)
@@ -110,7 +111,10 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         self.movingSelector.removeEnabled = True
         self.movingSelector.enabled = False
         self.movingSelector.connect("currentNodeChanged(bool)", self.click_moving_selector)
-        # self.movingSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.click_input_selector)
+        # self.clearMarkupsFromSceneButton = qt.QPushButton("Clear All Markups From Scene")
+        # self.clearMarkupsFromSceneButton.setFixedHeight(23)
+        # self.clearMarkupsFromSceneButton.connect('clicked(bool)', self.click_clear_markups_from_scene)
+        self.clearMarkupsFromSceneButton = qt.QCheckBox("Clear All Markups When Loading New Input Volume")
 
     def init_resample_tools(self):
         self.resampleInfoLabel = qt.QLabel("Load in a sample to enable spacing resample.")
@@ -169,6 +173,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         self.sectionsList.append(self.build_fiducial_registration())
         self.sectionsList.append(self.build_rigid_registration())
         for s in self.sectionsList: self.layout.addWidget(s)
+        self.layout.addWidget(self.build_version_info())
         self.layout.addStretch()
         self.update_slicer_view()
 
@@ -185,6 +190,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         label = qt.QLabel("Select an input volume to begin, then ensure the correct side is selected.")
         label.setWordWrap(True)
         layout.addRow(label)
+        layout.addRow(self.clearMarkupsFromSceneButton)
         box = qt.QHBoxLayout()
         box.addWidget(self.inputSelector)
         box.addWidget(self.fitAllButton)
@@ -256,6 +262,16 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         layout.setMargin(10)
         return section
 
+    def build_version_info(self):
+        section = qt.QWidget()
+        section.setFixedHeight(30)
+        label = qt.QLabel("Version 1.0")
+        label.enabled = False
+        layout = qt.QVBoxLayout(section)
+        layout.addWidget(label)
+        layout.setMargin(10)
+        return section
+
     # state checking ------------------------------------------------------------------------------
     def check_input_complete(self):
         if self.inputSelector.currentNode() is not None and (self.leftBoneCheckBox.isChecked() or self.rightBoneCheckBox.isChecked()):
@@ -272,10 +288,12 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         # check if side has been switched
         if self.atlasNode is not None and not self.atlasNode.GetName().startswith('Atlas_' + side_indicator):
             self.atlasNode = self.atlasFiducialNode = self.inputFiducialNode = None
+        if self.clearMarkupsFromSceneButton.isChecked(): DeepLearningPreProcessModuleLogic.clear_all_markups_from_scene()
         # check if we need an atlas imported
-        if self.atlasNode is None:
+        # if self.atlasNode is None or True:
+        if True:
             self.atlasNode, self.atlasFiducialNode, self.maskNode = DeepLearningPreProcessModuleLogic().load_atlas_and_fiducials_and_mask(side_indicator)
-            self.inputFiducialNode, self.fiducialSet = DeepLearningPreProcessModuleLogic().initialize_fiducial_set(self.atlasFiducialNode, self.fiducialPlacer)
+            self.inputFiducialNode, self.fiducialSet = DeepLearningPreProcessModuleLogic().initialize_fiducial_set(self.atlasFiducialNode, self.fiducialPlacer, name=self.inputSelector.currentNode().GetName())
             self.fiducialTabs.clear()
             for f in self.fiducialSet:
                 tab, f["table"] = InterfaceTools.build_fiducial_tab(f, self.click_fiducial_set_button, self.click_fiducial_clear_button)
@@ -288,7 +306,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         node = slicer.vtkMRMLScalarVolumeNode()
         current = self.inputSelector.currentNode()
         node.Copy(current)
-        node.SetName((current.GetName()[:20] + '.. [MOVED]') if len(current.GetName()) > 20 else current.GetName() + " [MOVED]")
+        node.SetName(current.GetName() + ' [MOVING]')
         slicer.mrmlScene.AddNode(node)
         self.movingSelector.setCurrentNode(node)
         self.movingSelector.enabled = True
@@ -400,6 +418,9 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
 
     def click_moving_selector(self, validity):
         if validity: self.update_slicer_view()
+
+    def click_clear_markups_from_scene(self):
+        DeepLearningPreProcessModuleLogic().clear_all_markups_from_scene()
 
     def click_spacing_spin_box(self):
         if self.movingSelector.currentNode() is None: return
@@ -528,14 +549,18 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
   """
 
     @staticmethod
-    def initialize_fiducial_set(atlas_fiducial_node, fiducial_placer):
+    def clear_all_markups_from_scene():
+        for n in slicer.mrmlScene.GetNodesByClass("vtkMRMLMarkupsFiducialNode"): slicer.mrmlScene.RemoveNode(n)
+
+    @staticmethod
+    def initialize_fiducial_set(atlas_fiducial_node, fiducial_placer, name):
         fiducial_set = []
         for i in range(0, atlas_fiducial_node.GetNumberOfFiducials()):
             f = {'label': atlas_fiducial_node.GetNthFiducialLabel(i), 'table': None, 'input_indices': [0, 0, 0], 'atlas_indices': [0, 0, 0]}
             atlas_fiducial_node.GetNthFiducialPosition(i, f['atlas_indices'])
             fiducial_set.append(f)
         inputFiducialNode = slicer.vtkMRMLMarkupsFiducialNode()
-        inputFiducialNode.SetName("Fiducial Input")
+        inputFiducialNode.SetName(name + ' Input Fiducials')
         inputFiducialNode.SetLocked(True)  # TODO remove and implement dragging node
         slicer.mrmlScene.AddNode(inputFiducialNode)
         inputFiducialNode.GetDisplayNode().SetColor(0.1, 0.7, 0.1)
@@ -548,7 +573,7 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
         atlasNode = slicer.util.loadVolume(framePath + 'Atlas_' + side_indicator + '.mha', returnNode=True)[1]
         atlasNode.HideFromEditorsOn()
         atlasFiducialNode = slicer.util.loadMarkupsFiducialList(framePath + 'Fiducial_' + side_indicator + '.fcsv', returnNode=True)[1]
-        atlasFiducialNode.SetName("Atlas Fiducials")
+        atlasFiducialNode.SetName('Atlas_' + side_indicator + ' Fiducials')
         atlasFiducialNode.SetLocked(True)
         atlasFiducialNode.HideFromEditorsOn()
         maskNode = slicer.util.loadVolume(framePath + 'CochleaRegistrationMask_' + side_indicator + '.nrrd', returnNode=True)[1]
