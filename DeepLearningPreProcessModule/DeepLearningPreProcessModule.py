@@ -43,8 +43,6 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
     inputFiducialNode = None
     fiducialSet = []
     intermediateNode = None
-    fiducialTransform = None    # TODO use
-    rigidTransform = None       # TODO use
 
     # UI members --------------
     sectionsList = []
@@ -173,7 +171,6 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         self.sectionsList.append(self.build_fiducial_registration())
         self.sectionsList.append(self.build_rigid_registration())
         for s in self.sectionsList: self.layout.addWidget(s)
-        self.layout.addWidget(self.build_version_info())
         self.layout.addStretch()
         self.update_slicer_view()
 
@@ -250,7 +247,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
 
     def build_rigid_registration(self):
         section = InterfaceTools.build_dropdown("Rigid Registration", disabled=True)
-        row = qt.QHBoxLayout()
+        # row = qt.QHBoxLayout()
         # row.addWidget(qt.QLabel("Parameters: Elastix Rigid Registration"))
         # row.addWidget(self.rigidStatus)
         layout = qt.QVBoxLayout(section)
@@ -259,16 +256,6 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         layout.addWidget(self.rigidStatus)
         layout.addWidget(self.rigidProgress)
         layout.addWidget(self.rigidApplyButton)
-        layout.setMargin(10)
-        return section
-
-    def build_version_info(self):
-        section = qt.QWidget()
-        section.setFixedHeight(30)
-        label = qt.QLabel("Version 1.0")
-        label.enabled = False
-        layout = qt.QVBoxLayout(section)
-        layout.addWidget(label)
         layout.setMargin(10)
         return section
 
@@ -355,7 +342,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
             if self.fiducialPlacer.placeModeEnabled and i == self.fiducialTabs.currentIndex: icon = qt.QIcon(path + 'fiducial.png')
             else: icon = qt.QIcon(path + 'check.png') if self.fiducialSet[i]['input_indices'] != [0, 0, 0] else qt.QIcon()
             self.fiducialTabs.setTabIcon(i, icon)
-            for j in (range(0, 3)): self.fiducialSet[i]["table"].item(0, j).setText('%.3f'%self.fiducialSet[i]["input_indices"][j])
+            for j in (range(0, 3)): self.fiducialSet[i]["table"].item(0, j).setText('%.3f' % self.fiducialSet[i]["input_indices"][j])
         self.fiducialApplyButton.enabled = True if completed >= 3 else False
 
     def update_fiducial_buttons(self):
@@ -418,9 +405,6 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
 
     def click_moving_selector(self, validity):
         if validity: self.update_slicer_view()
-
-    def click_clear_markups_from_scene(self):
-        DeepLearningPreProcessModuleLogic().clear_all_markups_from_scene()
 
     def click_spacing_spin_box(self):
         if self.movingSelector.currentNode() is None: return
@@ -628,6 +612,7 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
             'transformType'    : 'Rigid',
             "saveTransform"    : transform.GetID()
         })
+        print(output)
         moving_node.ApplyTransform(transform.GetTransformToParent())
         # clean up
         # slicer.mrmlScene.RemoveNode(transform)
