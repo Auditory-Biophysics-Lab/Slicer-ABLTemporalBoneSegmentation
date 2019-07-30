@@ -430,7 +430,6 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
             spacing = [float(i)/1000 for i in spacing]
             return DeepLearningPreProcessModuleLogic().pull_node_resample_push(self.movingSelector.currentNode(), spacing, supportedResampleInterpolations[self.resampleInterpolation.currentIndex]['value'])
         self.process_transform(function, set_moving_volume=True)
-        # TODO renaming to have number
 
     def click_fiducial_tab(self, index):
         if self.fiducialPlacer.placeModeEnabled: self.fiducialPlacer.setPlaceModeEnabled(False)
@@ -503,7 +502,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
             self.rigidApplyButton.visible = False
             return DeepLearningPreProcessModuleLogic().apply_rigid_registration(atlas_node=self.atlasNode,
                                                                                 moving_node=self.movingSelector.currentNode(),
-                                                                                mask_node=self.maskNode,    # TODO add checkbox
+                                                                                mask_node=self.maskNode,
                                                                                 log_callback=self.update_rigid_progress)
         self.process_transform(function, corresponding_button=self.rigidApplyButton, set_moving_volume=True)
 
@@ -645,12 +644,13 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
         # transform_node = slicer.vtkMRMLTransformNode()
         # slicer.mrmlScene.AddNode(transform_node)
         logic = Elastix.ElastixLogic()
+        logic.registrationParameterFilesDir = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + '/Resources/Parameters/'
         logic.logStandardOutput = True
         logic.logCallback = log_callback
         logic.registerVolumes(
             fixedVolumeNode=atlas_node,
             movingVolumeNode=moving_node,
-            parameterFilenames=logic.getRegistrationPresets()[1][5],
+            parameterFilenames={"Parameters_Rigid.txt"},
             outputVolumeNode=moving_node,
             # outputTransformNode=transform_node,
             fixedVolumeMaskNode=mask_node,

@@ -1,6 +1,7 @@
 <component name="ProjectDictionaryState">
   <dictionary name="Evan">
     <words>
+      <w>blackman</w>
       <w>elastix</w>
       <w>fcsv</w>
       <w>fiducial</w>
@@ -9,6 +10,7 @@
       <w>geniculate</w>
       <w>helpard</w>
       <w>itku</w>
+      <w>lanczos</w>
       <w>malleus</w>
       <w>mrml</w>
       <w>nrrd</w>
@@ -17,12 +19,14 @@
       <w>resampled</w>
       <w>resampler</w>
       <w>resampling</w>
+      <w>sinc</w>
       <w>sitk</w>
       <w>sitku</w>
       <w>sscc</w>
       <w>stylo</w>
       <w>stylomastoid</w>
       <w>thresholding</w>
+      <w>welch</w>
     </words>
   </dictionary>
 </component>
