@@ -2,8 +2,10 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="f08bb156-2c28-4f65-9fa3-faa143f298d2" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/DeepLearningPreProcessModule/DeepLearningPreProcessModule.py" beforeDir="false" afterPath="$PROJECT_DIR$/DeepLearningPreProcessModule/DeepLearningPreProcessModule.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/DeepLearningPreProcessModule/Utilities/InterfaceTools.py" beforeDir="false" afterPath="$PROJECT_DIR$/DeepLearningPreProcessModule/Utilities/InterfaceTools.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -124,7 +126,7 @@
       <workItem from="1562698901749" duration="9841000" />
       <workItem from="1562855356021" duration="74719000" />
       <workItem from="1563820532694" duration="26878000" />
-      <workItem from="1563990867805" duration="32854000" />
+      <workItem from="1563990867805" duration="42561000" />
     </task>
     <servers />
   </component>

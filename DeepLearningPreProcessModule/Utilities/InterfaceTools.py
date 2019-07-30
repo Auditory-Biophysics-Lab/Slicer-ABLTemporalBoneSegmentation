@@ -15,12 +15,12 @@ class InterfaceTools:
         return d
 
     @staticmethod
-    def build_spin_box(minimum, maximum, click):
+    def build_spin_box(minimum, maximum, click=None):
         box = qt.QSpinBox()
         box.setMinimum(minimum)
         box.setMaximum(maximum)
         # box.setDecimals(decimals)
-        box.connect('valueChanged(int)', click)
+        if click is not None: box.connect('valueChanged(int)', click)
         return box
 
     @staticmethod

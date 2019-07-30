@@ -20,6 +20,11 @@ supportedResampleInterpolations = [
     {'title': 'Lanczos windowed sinc', 'value': sitk.sitkLanczosWindowedSinc}
 ]
 
+supportedResamplePresets = [
+    {'title': 'X:154um,  Y:154um,  Z:154um', 'value': [154, 154, 154]},
+    {'title': 'X:50um,  Y:50um,  Z:50um', 'value': [50, 50, 50]}
+]
+
 
 # Main Initialization & Info
 class DeepLearningPreProcessModule(ScriptedLoadableModule):
@@ -52,10 +57,12 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
     rightBoneCheckBox = None
     clearMarkupsFromSceneButton = None
     resampleInfoLabel = None
-    resampleInterpolation = None
+    resampleTabBox = None
+    resamplePresetBox = None
     resampleSpacingXBox = None
     resampleSpacingYBox = None
     resampleSpacingZBox = None
+    resampleInterpolation = None
     resampleButton = None
     fiducialPlacer = None
     fiducialTabs = None
@@ -90,7 +97,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         icon = qt.QPixmap(path).scaled(qt.QSize(16, 16), qt.Qt.KeepAspectRatio, qt.Qt.SmoothTransformation)
         self.fitAllButton = qt.QToolButton()
         self.fitAllButton.setIcon(qt.QIcon(icon))
-        self.fitAllButton.setFixedHeight(23)
+        self.fitAllButton.setFixedHeight(24)
         self.fitAllButton.enabled = False
         self.fitAllButton.setToolTip("Fit all Slice Viewers to match the extent of the lowest non-Null volume layer.")
         self.fitAllButton.connect('clicked(bool)', self.click_fit_all_views)
@@ -109,22 +116,22 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         self.movingSelector.removeEnabled = True
         self.movingSelector.enabled = False
         self.movingSelector.connect("currentNodeChanged(bool)", self.click_moving_selector)
-        # self.clearMarkupsFromSceneButton = qt.QPushButton("Clear All Markups From Scene")
-        # self.clearMarkupsFromSceneButton.setFixedHeight(23)
-        # self.clearMarkupsFromSceneButton.connect('clicked(bool)', self.click_clear_markups_from_scene)
         self.clearMarkupsFromSceneButton = qt.QCheckBox("Clear All Markups When Loading New Input Volume")
 
     def init_resample_tools(self):
         self.resampleInfoLabel = qt.QLabel("Load in a sample to enable spacing resample.")
         self.resampleInfoLabel.setWordWrap(True)
+        self.resamplePresetBox = qt.QComboBox()
+        self.resamplePresetBox.setFixedHeight(34)
+        for i in supportedResamplePresets: self.resamplePresetBox.addItem(i["title"])
+        self.resampleSpacingXBox = InterfaceTools.build_spin_box(1, 9999)
+        self.resampleSpacingYBox = InterfaceTools.build_spin_box(1, 9999)
+        self.resampleSpacingZBox = InterfaceTools.build_spin_box(1, 9999)
         self.resampleInterpolation = qt.QComboBox()
         for i in supportedResampleInterpolations: self.resampleInterpolation.addItem(i["title"])
-        self.resampleSpacingXBox = InterfaceTools.build_spin_box(1, 9999, self.click_spacing_spin_box)
-        self.resampleSpacingYBox = InterfaceTools.build_spin_box(1, 9999, self.click_spacing_spin_box)
-        self.resampleSpacingZBox = InterfaceTools.build_spin_box(1, 9999, self.click_spacing_spin_box)
+        self.resampleInterpolation.currentIndex = 2
         self.resampleButton = qt.QPushButton("Resample Output to New Volume")
-        self.resampleButton.setFixedHeight(23)
-        self.resampleButton.enabled = False
+        self.resampleButton.setFixedHeight(24)
         self.resampleButton.connect('clicked(bool)', self.click_resample_volume)
 
     def init_fiducial_registration(self):
@@ -205,28 +212,40 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
 
     def build_resample_tools(self):
         section = InterfaceTools.build_dropdown("Spacing Resample Tools", disabled=True)
-        form = qt.QFormLayout()
-        form.addRow("Interpolation Mode", self.resampleInterpolation)
+        # presets
+        presets = qt.QWidget()
+        layout = qt.QVBoxLayout(presets)
+        layout.addWidget(self.resamplePresetBox)
+        layout.setMargin(10)
+        # manual
+        manual = qt.QWidget()
+        layout = qt.QHBoxLayout(manual)
+        def label(t):
+            l = qt.QLabel(t)
+            l.setAlignment(qt.Qt.AlignCenter)
+            return l
+        layout.addWidget(label("X:"))
+        layout.addWidget(self.resampleSpacingXBox)
+        layout.addWidget(qt.QLabel("um"))
+        layout.addWidget(label("Y:"))
+        layout.addWidget(self.resampleSpacingYBox)
+        layout.addWidget(qt.QLabel("um"))
+        layout.addWidget(label("Z:"))
+        layout.addWidget(self.resampleSpacingZBox)
+        layout.addWidget(qt.QLabel("um"))
+
+        self.resampleTabBox = qt.QTabWidget()
+        self.resampleTabBox.addTab(presets, "Presets")
+        self.resampleTabBox.addTab(manual, "Manual")
+
         grid = qt.QGridLayout()
-        label = qt.QLabel("X:")
-        label.setAlignment(qt.Qt.AlignCenter)
-        grid.addWidget(label, 0, 0, 1, 1)
-        grid.addWidget(self.resampleSpacingXBox, 0, 1, 1, 1)
-        label = qt.QLabel("um    Y:")
-        label.setAlignment(qt.Qt.AlignCenter)
-        grid.addWidget(label, 0, 3, 1, 1)
-        grid.addWidget(self.resampleSpacingYBox, 0, 4, 1, 1)
-        label = qt.QLabel("um    Z:")
-        label.setAlignment(qt.Qt.AlignCenter)
-        grid.addWidget(label, 0, 5, 1, 1)
-        grid.addWidget(self.resampleSpacingZBox, 0, 6, 1, 1)
-        label = qt.QLabel("um")
-        label.setAlignment(qt.Qt.AlignCenter)
-        grid.addWidget(label, 0, 7, 1, 1)
-        grid.addWidget(self.resampleButton, 0, 8, 1, 20)
+        grid.addWidget(qt.QLabel("Interpolation Mode:"), 0, 0, 1, 1)
+        grid.addWidget(self.resampleInterpolation, 0, 1, 1, 1)
+        grid.addWidget(self.resampleButton, 0, 2, 1, 2)
+
         layout = qt.QVBoxLayout(section)
         layout.addWidget(self.resampleInfoLabel)
-        layout.addLayout(form)
+        layout.addWidget(self.resampleTabBox)
         layout.addLayout(grid)
         layout.setMargin(10)
         return section
@@ -269,7 +288,6 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         else:
             self.update_sections_enabled(enabled=False)
 
-    # input complete - fetch atlas, fiducials, and populate table
     def finalize_input(self):
         side_indicator = 'R' if self.rightBoneCheckBox.isChecked() else 'L'
         # check if side has been switched
@@ -321,7 +339,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         self.movingSelector.enabled = enabled
         for i in range(1, len(self.sectionsList)):
             self.sectionsList[i].enabled = enabled
-            self.sectionsList[i].collapsed = not enabled
+            # self.sectionsList[i].collapsed = not enabled
 
     def update_slicer_view(self):
         slicer.app.layoutManager().setLayout(21)
@@ -352,8 +370,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
 
     def update_rigid_progress(self, text):
         print(text)
-        # TODO trim text
-        self.rigidStatus.text = 'Status: ' + (text[:60] + '..') if len(text) > 60 else text
+        self.rigidStatus.text = 'Status: ' + ((text[:60] + '..') if len(text) > 60 else text)
         progress = None
         if text.startswith('Register volumes'): progress = 1
         elif text.startswith('-fMask'): progress = 3
@@ -406,18 +423,14 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
     def click_moving_selector(self, validity):
         if validity: self.update_slicer_view()
 
-    def click_spacing_spin_box(self):
-        if self.movingSelector.currentNode() is None: return
-        currentSpacing = DeepLearningPreProcessModuleLogic().get_um_spacing(self.movingSelector.currentNode().GetSpacing())
-        boxSpacing = [self.resampleSpacingXBox.value, self.resampleSpacingYBox.value, self.resampleSpacingZBox.value]
-        self.resampleButton.enabled = currentSpacing != boxSpacing
-
     def click_resample_volume(self):
         def function():
-            self.resampleButton.enabled = False
-            spacing = [float(self.resampleSpacingXBox.value) / 1000, float(self.resampleSpacingYBox.value) / 1000, float(self.resampleSpacingZBox.value) / 1000]
+            if self.resampleTabBox.currentIndex == 0: spacing = supportedResamplePresets[self.resamplePresetBox.currentIndex]['value']
+            else: spacing = [self.resampleSpacingXBox.value, self.resampleSpacingYBox.value, self.resampleSpacingZBox.value]
+            spacing = [float(i)/1000 for i in spacing]
             return DeepLearningPreProcessModuleLogic().pull_node_resample_push(self.movingSelector.currentNode(), spacing, supportedResampleInterpolations[self.resampleInterpolation.currentIndex]['value'])
         self.process_transform(function, set_moving_volume=True)
+        # TODO renaming to have number
 
     def click_fiducial_tab(self, index):
         if self.fiducialPlacer.placeModeEnabled: self.fiducialPlacer.setPlaceModeEnabled(False)
@@ -478,7 +491,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
             self.intermediateNode = None
             self.update_fiducial_buttons()
             return output
-        self.process_transform(function)
+        self.process_transform(function, set_moving_volume=True)
 
     def click_rigid_apply(self):
         def function():
@@ -488,7 +501,10 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
             self.rigidProgress.value = 0
             self.rigidProgress.visible = True
             self.rigidApplyButton.visible = False
-            return DeepLearningPreProcessModuleLogic().apply_rigid_registration(self.atlasNode, self.movingSelector.currentNode(), self.maskNode, self.update_rigid_progress)
+            return DeepLearningPreProcessModuleLogic().apply_rigid_registration(atlas_node=self.atlasNode,
+                                                                                moving_node=self.movingSelector.currentNode(),
+                                                                                mask_node=self.maskNode,    # TODO add checkbox
+                                                                                log_callback=self.update_rigid_progress)
         self.process_transform(function, corresponding_button=self.rigidApplyButton, set_moving_volume=True)
 
     # TODO remove
@@ -585,7 +601,7 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
     def pull_node_resample_push(node, spacing_in_um, interpolation):
         image = sitku.PullVolumeFromSlicer(node.GetID())
         resampledImage = DeepLearningPreProcessModuleLogic().resample_image(image, spacing_in_um, interpolation)
-        resampledNode = sitku.PushVolumeToSlicer(resampledImage, None, node.GetName() + " +Resampled", "vtkMRMLScalarVolumeNode")
+        resampledNode = sitku.PushVolumeToSlicer(resampledImage, None, node.GetName() + " +Resampled" + str(spacing_in_um) + '', "vtkMRMLScalarVolumeNode")
         return resampledNode
 
     @staticmethod
