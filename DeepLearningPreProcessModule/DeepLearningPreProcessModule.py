@@ -450,7 +450,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         dialog.setAcceptMode(qt.QFileDialog.AcceptSave)
         if dialog.exec_() != qt.QDialog.Accepted: return
         o = slicer.util.saveNode(node=self.movingSelector.currentNode(),
-                                 filename=dialog.selectedFiles()[0] + next(t for t in supportedSaveTypes if t["title"] == dialog.selectedNameFilter())['value'])
+                                 filename=dialog.selectedFiles()[0].replace(' ', '') + next(t for t in supportedSaveTypes if t["title"] == dialog.selectedNameFilter())['value'])
         print(o)
 
     def click_resample_volume(self):
