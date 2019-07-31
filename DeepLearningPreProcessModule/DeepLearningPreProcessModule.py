@@ -25,6 +25,12 @@ supportedResamplePresets = [
     {'title': 'X:50um,  Y:50um,  Z:50um', 'value': [50, 50, 50]}
 ]
 
+supportedSaveTypes = [
+    {'title': 'NRRD (*.nrrd)', 'value': '.nrrd'},
+    {'title': 'NifTI (*.nii)', 'value': '.nii'},
+    # {'title': 'DICOM (*.dicom)', 'value': '.dicom'},
+]
+
 
 # Main Initialization & Info
 class DeepLearningPreProcessModule(ScriptedLoadableModule):
@@ -48,14 +54,16 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
     inputFiducialNode = None
     fiducialSet = []
     intermediateNode = None
-
-    # UI members --------------
     sectionsList = []
+
+    # UI members -------------- (in order of appearance)
+    clearMarkupsCheckbox = None
     inputSelector = None
     fitAllButton = None
     leftBoneCheckBox = None
     rightBoneCheckBox = None
-    clearMarkupsFromSceneButton = None
+    movingSelector = None
+    movingSaveButton = None
     resampleInfoLabel = None
     resampleTabBox = None
     resamplePresetBox = None
@@ -74,7 +82,6 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
     rigidStatus = None
     rigidProgress = None
     rigidApplyButton = None
-    movingSelector = None
 
     # main initialization ------------------------------------------------------------------------------
     def __init__(self, parent):
@@ -85,6 +92,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         self.init_rigid_registration()
 
     def init_volume_tools(self):
+        self.clearMarkupsCheckbox = qt.QCheckBox("Clear All Markups When Loading New Input Volume")
         self.inputSelector = slicer.qMRMLNodeComboBox()
         self.inputSelector.nodeTypes = ["vtkMRMLScalarVolumeNode"]
         self.inputSelector.addEnabled = False
@@ -97,7 +105,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         icon = qt.QPixmap(path).scaled(qt.QSize(16, 16), qt.Qt.KeepAspectRatio, qt.Qt.SmoothTransformation)
         self.fitAllButton = qt.QToolButton()
         self.fitAllButton.setIcon(qt.QIcon(icon))
-        self.fitAllButton.setFixedHeight(24)
+        self.fitAllButton.setFixedSize(50, 24)
         self.fitAllButton.enabled = False
         self.fitAllButton.setToolTip("Fit all Slice Viewers to match the extent of the lowest non-Null volume layer.")
         self.fitAllButton.connect('clicked(bool)', self.click_fit_all_views)
@@ -116,7 +124,10 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         self.movingSelector.removeEnabled = True
         self.movingSelector.enabled = False
         self.movingSelector.connect("currentNodeChanged(bool)", self.click_moving_selector)
-        self.clearMarkupsFromSceneButton = qt.QCheckBox("Clear All Markups When Loading New Input Volume")
+        self.movingSaveButton = qt.QPushButton("Save")
+        self.movingSaveButton.setFixedSize(50, 24)
+        self.movingSaveButton.connect("clicked(bool)", self.click_save_moving)
+        self.movingSaveButton.enabled = False
 
     def init_resample_tools(self):
         self.resampleInfoLabel = qt.QLabel("Load in a sample to enable spacing resample.")
@@ -182,10 +193,10 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         self.update_slicer_view()
 
         # testing TODO remove
-        # slicer.mrmlScene.Clear()
-        # path = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Atlases/1512R_Clinical_Aligned_Test_Input.nrrd"
-        # node = slicer.util.loadVolume(path, returnNode=True)[1]
-        # self.inputSelector.setCurrentNode(node)
+        slicer.mrmlScene.Clear()
+        path = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Atlases/1512R_Clinical_Aligned_Test_Input.nrrd"
+        node = slicer.util.loadVolume(path, returnNode=True)[1]
+        self.inputSelector.setCurrentNode(node)
         # end testing area
 
     def build_volume_tools(self):
@@ -194,7 +205,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         label = qt.QLabel("Select an input volume to begin, then ensure the correct side is selected.")
         label.setWordWrap(True)
         layout.addRow(label)
-        layout.addRow(self.clearMarkupsFromSceneButton)
+        layout.addRow(self.clearMarkupsCheckbox)
         box = qt.QHBoxLayout()
         box.addWidget(self.inputSelector)
         box.addWidget(self.fitAllButton)
@@ -206,7 +217,10 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         label = qt.QLabel("A moving volume is generated from the input and displayed on the top three views. It will update as transforms are applied.")
         label.setWordWrap(True)
         layout.addRow(label)
-        layout.addRow("Moving Volume: ", self.movingSelector)
+        box = qt.QHBoxLayout()
+        box.addWidget(self.movingSelector)
+        box.addWidget(self.movingSaveButton)
+        layout.addRow("Moving Volume: ", box)
         layout.setMargin(10)
         return section
 
@@ -293,7 +307,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         # check if side has been switched
         if self.atlasNode is not None and not self.atlasNode.GetName().startswith('Atlas_' + side_indicator):
             self.atlasNode = self.atlasFiducialNode = self.inputFiducialNode = None
-        if self.clearMarkupsFromSceneButton.isChecked(): DeepLearningPreProcessModuleLogic.clear_all_markups_from_scene()
+        if self.clearMarkupsCheckbox.isChecked(): DeepLearningPreProcessModuleLogic.clear_all_markups_from_scene()
         # check if we need an atlas imported
         # if self.atlasNode is None or True:
         if True:
@@ -315,6 +329,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         slicer.mrmlScene.AddNode(node)
         self.movingSelector.setCurrentNode(node)
         self.movingSelector.enabled = True
+        self.movingSaveButton.enabled = True
         spacing = DeepLearningPreProcessModuleLogic().get_um_spacing(node.GetSpacing())
         self.resampleSpacingXBox.value, self.resampleSpacingYBox.value, self.resampleSpacingZBox.value = spacing[0], spacing[1], spacing[2]
 
@@ -337,6 +352,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
     def update_sections_enabled(self, enabled):
         self.fitAllButton.enabled = enabled
         self.movingSelector.enabled = enabled
+        self.movingSaveButton.enabled = enabled
         for i in range(1, len(self.sectionsList)):
             self.sectionsList[i].enabled = enabled
             # self.sectionsList[i].collapsed = not enabled
@@ -422,6 +438,20 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
 
     def click_moving_selector(self, validity):
         if validity: self.update_slicer_view()
+
+    def click_save_moving(self):
+        name = self.movingSelector.currentNode().GetName()
+        dialog = qt.QFileDialog(None, "Save Moving Volume '" + name + "'")
+        dialog.setDirectory(".")
+        dialog.setOptions(qt.QFileDialog.DontUseNativeDialog)
+        dialog.setFileMode(qt.QFileDialog.AnyFile)
+        dialog.setNameFilter(';;'.join([t['title'] for t in supportedSaveTypes]))
+        dialog.selectFile(name.replace(' ', ''))
+        dialog.setAcceptMode(qt.QFileDialog.AcceptSave)
+        if dialog.exec_() != qt.QDialog.Accepted: return
+        o = slicer.util.saveNode(node=self.movingSelector.currentNode(),
+                                 filename=dialog.selectedFiles()[0] + next(t for t in supportedSaveTypes if t["title"] == dialog.selectedNameFilter())['value'])
+        print(o)
 
     def click_resample_volume(self):
         def function():
@@ -657,6 +687,7 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
             movingVolumeMaskNode=mask_node
         )
         # moving_node.ApplyTransform(transform_node.GetTransformToParent())
+        # moving_node.HardenTransform()
         moving_node.SetName(moving_node.GetName() + " +Rigid")
         return moving_node
 
