@@ -20,6 +20,7 @@ include(${Slicer_USE_FILE})
 #-----------------------------------------------------------------------------
 # Extension modules
 add_subdirectory(DeepLearningPreProcessModule)
+add_subdirectory(IntraSampleRegistration)
 ## NEXT_MODULE
 
 #-----------------------------------------------------------------------------

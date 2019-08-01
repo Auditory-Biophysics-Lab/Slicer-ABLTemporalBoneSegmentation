@@ -83,7 +83,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
     rigidProgress = None
     rigidApplyButton = None
 
-    # main initialization ------------------------------------------------------------------------------
+    # initialization ------------------------------------------------------------------------------
     def __init__(self, parent):
         ScriptedLoadableModuleWidget.__init__(self, parent)
         self.init_volume_tools()
@@ -181,7 +181,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         self.rigidApplyButton = qt.QPushButton("Apply\n Rigid Registration")
         self.rigidApplyButton.connect('clicked(bool)', self.click_rigid_apply)
 
-    # main ui layout building ------------------------------------------------------------------------------
+    # UI build ------------------------------------------------------------------------------
     def setup(self):
         ScriptedLoadableModuleWidget.setup(self)
         self.sectionsList.append(self.build_volume_tools())
@@ -193,10 +193,10 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         self.update_slicer_view()
 
         # testing TODO remove
-        slicer.mrmlScene.Clear()
-        path = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Atlases/1512R_Clinical_Aligned_Test_Input.nrrd"
-        node = slicer.util.loadVolume(path, returnNode=True)[1]
-        self.inputSelector.setCurrentNode(node)
+        # slicer.mrmlScene.Clear()
+        # path = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Atlases/1512R_Clinical_Aligned_Test_Input.nrrd"
+        # node = slicer.util.loadVolume(path, returnNode=True)[1]
+        # self.inputSelector.setCurrentNode(node)
         # end testing area
 
     def build_volume_tools(self):
@@ -568,15 +568,6 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
 
 # Main Logic
 class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
-    """This class should implement all the actual
-  computation done by your module.  The interface
-  should be such that other python code can import
-  this class and make use of the functionality without
-  requiring an instance of the Widget.
-  Uses ScriptedLoadableModuleLogic base class, available at:
-  https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
-  """
-
     @staticmethod
     def clear_all_markups_from_scene():
         for n in slicer.mrmlScene.GetNodesByClass("vtkMRMLMarkupsFiducialNode"): slicer.mrmlScene.RemoveNode(n)
@@ -747,20 +738,10 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
 
 # Testing
 class DeepLearningPreProcessModuleTest(ScriptedLoadableModuleTest):
-    """
-  This is the test case for your scripted module.
-  Uses ScriptedLoadableModuleTest base class, available at:
-  https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
-  """
-
     def setUp(self):
-        """ Do whatever is needed to reset the state - typically a scene clear will be enough.
-    """
         slicer.mrmlScene.Clear(0)
 
     def runTest(self):
-        """Run as few or as many tests as needed here.
-    """
         self.setUp()
         self.test_DeepLearningPreProcessModule1()
 
@@ -775,19 +756,3 @@ class DeepLearningPreProcessModuleTest(ScriptedLoadableModuleTest):
     module.  For example, if a developer removes a feature that you depend on,
     your test should break so they know that the feature is needed.
     """
-
-        self.delayDisplay("Starting the test")
-        # #
-        # # first, get some data
-        # #
-        # import SampleData
-        # SampleData.downloadFromURL(
-        #     nodeNames='FA',
-        #     fileNames='FA.nrrd',
-        #     uris='http://slicer.kitware.com/midas3/download?items=5767')
-        # self.delayDisplay('Finished with download and loading')
-        #
-        # volumeNode = slicer.util.getNode(pattern="FA")
-        # logic = DeepLearningPreProcessModuleLogic()
-        # self.assertIsNotNone(logic.has_image_data(volumeNode))
-        # self.delayDisplay('Test passed!')

@@ -26,6 +26,7 @@ class InterfaceTools:
     @staticmethod
     def build_fiducial_tab(fiducial, click_set, click_clear):
         table = qt.QTableWidget(1, 3)
+        table.setEditTriggers(qt.QAbstractItemView.NoEditTriggers)
         table.setSelectionBehavior(qt.QAbstractItemView.SelectRows)
         table.setFixedHeight(46)
         table.setHorizontalHeaderLabels(["X", "Y", "Z"])
@@ -33,7 +34,7 @@ class InterfaceTools:
         for i in (range(0, 3)):
             item = qt.QTableWidgetItem("-")
             item.setTextAlignment(qt.Qt.AlignCenter)
-            item.setFlags(qt.Qt.ItemIsSelectable)
+            # item.setFlags(qt.Qt.ItemIsSelectable)
             table.setItem(0, i, item)
         table.setVerticalHeaderLabels([''])
         table.verticalHeader().setFixedWidth(0)
