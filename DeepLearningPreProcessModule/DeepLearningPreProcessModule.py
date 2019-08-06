@@ -26,8 +26,8 @@ supportedResamplePresets = [
 ]
 
 supportedSaveTypes = [
-    {'title': 'NRRD (*.nrrd)', 'value': '.nrrd'},
     {'title': 'NifTI (*.nii)', 'value': '.nii'},
+    {'title': 'NRRD (*.nrrd)', 'value': '.nrrd'},
     # {'title': 'DICOM (*.dicom)', 'value': '.dicom'},
 ]
 
@@ -386,21 +386,8 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
 
     def update_rigid_progress(self, text):
         print(text)
+        progress = DeepLearningPreProcessModuleLogic.process_rigid_progress(text)
         self.rigidStatus.text = 'Status: ' + ((text[:60] + '..') if len(text) > 60 else text)
-        progress = None
-        if text.startswith('Register volumes'): progress = 1
-        elif text.startswith('-fMask'): progress = 3
-        elif text.startswith('Reading images'): progress = 7
-        elif text.startswith('Time spent in resolution 0'): progress = 14
-        elif text.startswith('Time spent in resolution 1'): progress = 40
-        elif text.startswith('Time spent in resolution 2'): progress = 60
-        elif text.startswith('Time spent in resolution 3'): progress = 80
-        elif text.startswith('Applying final transform'): progress = 85
-        elif text.startswith('Time spent on saving the results'): progress = 90
-        elif text.startswith('Generate output'): progress = 93
-        elif text.startswith('Reading input image'): progress = 94
-        elif text.startswith('Resampling image and writing to disk'): progress = 96
-        elif text.startswith('Registration is completed'): progress = 100
         if progress is not None: self.rigidProgress.value = progress
         if progress is 100:
             self.rigidProgress.visible = False
@@ -429,12 +416,12 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
     def click_right_bone(self, force=False):
         if force: self.rightBoneCheckBox.setChecked(True)
         if self.rightBoneCheckBox.isChecked(): self.leftBoneCheckBox.setChecked(False)
-        self.check_input_complete()
+        if not force: self.check_input_complete()
 
     def click_left_bone(self, force=False):
         if force: self.leftBoneCheckBox.setChecked(True)
         if self.leftBoneCheckBox.isChecked(): self.rightBoneCheckBox.setChecked(False)
-        self.check_input_complete()
+        if not force: self.check_input_complete()
 
     def click_moving_selector(self, validity):
         if validity: self.update_slicer_view()
@@ -681,6 +668,24 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
         # moving_node.HardenTransform()
         moving_node.SetName(moving_node.GetName() + " +Rigid")
         return moving_node
+
+    @staticmethod
+    def process_rigid_progress(text):
+        progress = None
+        if text.startswith('Register volumes'): progress = 1
+        elif text.startswith('-fMask'): progress = 3
+        elif text.startswith('Reading images'): progress = 7
+        elif text.startswith('Time spent in resolution 0'): progress = 14
+        elif text.startswith('Time spent in resolution 1'): progress = 40
+        elif text.startswith('Time spent in resolution 2'): progress = 60
+        elif text.startswith('Time spent in resolution 3'): progress = 80
+        elif text.startswith('Applying final transform'): progress = 85
+        elif text.startswith('Time spent on saving the results'): progress = 90
+        elif text.startswith('Generate output'): progress = 93
+        elif text.startswith('Reading input image'): progress = 94
+        elif text.startswith('Resampling image and writing to disk'): progress = 96
+        elif text.startswith('Registration is completed'): progress = 100
+        return progress
 
     # TODO remove
     # def run_flip(self, volume):

@@ -8,10 +8,8 @@ from slicer.ScriptedLoadableModule import *
 from Utilities.InterfaceTools import InterfaceTools
 
 
-# noinspection PyClassHasNoInit
 class PairStatus:
-    INITIALIZING = 0
-    INITIALIZED = 1
+    LOADING = 1
     READY = 2
     PENDING = 3
     EXECUTING = 4
@@ -19,23 +17,49 @@ class PairStatus:
     FAILED = 6
 
 
-class Pair:
-    moving = None
+# TODO move to interfaceTools
+def build_volume_selector(on_click):
+    s = slicer.qMRMLNodeComboBox()
+    s.nodeTypes = ["vtkMRMLScalarVolumeNode"]
+    s.addEnabled = False
+    s.renameEnabled = s.noneEnabled = True
+    s.setMRMLScene(slicer.mrmlScene)
+    s.connect("currentNodeChanged(bool)", on_click)
+    return s
 
-    def __init__(self):
-        self.moving = None
-        self.fixed = None
-        self.status = PairStatus.INITIALIZING
+
+# TODO move to interfaceTools
+def build_text_item():
+    i = qt.QTableWidgetItem("")
+    i.setTextAlignment(qt.Qt.AlignCenter)
+    return i
+
+
+class Pair:
+    def __init__(self, on_click):
+        self.fixed = build_volume_selector(on_click)
+        self.moving = build_volume_selector(on_click)
+        # self.statusText =
+        # self.progress =
+        self.status = PairStatus.LOADING
+
+    def disable(self):
+        self.fixed.enabled = self.moving.enabled = False
+
+    def enable(self):
+        self.fixed.enabled = self.moving.enabled = True
 
     def StatusString(self):
-        s = "0"
-        if self.status == PairStatus.INITIALIZED: return "-"
+        if self.status == PairStatus.LOADING:
+            n = 1 if self.fixed.currentNode() is not None else 0
+            n += 1 if self.moving.currentNode() is not None else 0
+            return str(n) + "/2"
         elif self.status == PairStatus.READY: return "Ready"
         elif self.status == PairStatus.PENDING: return "Pending"
         elif self.status == PairStatus.EXECUTING: return "Executing"
         elif self.status == PairStatus.COMPLETE: return "Complete"
         elif self.status == PairStatus.FAILED: return "Failed"
-        return s
+        return "0"
 
 
 class IntraSampleRegistration(ScriptedLoadableModule):
@@ -49,17 +73,28 @@ class IntraSampleRegistration(ScriptedLoadableModule):
         self.parent.acknowledgementText = "This file was originally developed by Luke Helpard and Evan Simpson at The University of Western Ontario in the HML/SKA Auditory Biophysics Lab."
 
 
+class IntraSampleRegistrationState:
+    INPUT = 1
+    EXECUTION = 2
+
+
 class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
     # UI members -------------- (in order of appearance)
     table = None
+    toolBox = None
+    toolLayout = None
     addButton = None
     removeButton = None
     executeButton = None
     saveButton = None
+    progressBox = None
     progressBar = None
+    cancelButton = None
+    finishButton = None
 
     # Data members ------------
-    pairs = [Pair()]
+    state = IntraSampleRegistrationState.INPUT
+    pairs = []
 
     # initialization ------------------------------------------------------------------------------
     def __init__(self, parent):
@@ -69,12 +104,13 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
     def setup(self):
         ScriptedLoadableModuleWidget.setup(self)
         self.layout.addLayout(self.build_table())
-        self.layout.addLayout(self.build_tools())
+        self.layout.addWidget(self.build_tools())
+        self.layout.addWidget(self.build_progress())
         self.layout.addStretch()
-        self.check_state()
+        self.click_add()
 
     def build_table(self):
-        self.table = qt.QTableWidget(1, 3)
+        self.table = qt.QTableWidget(0, 3)
         self.table.setEditTriggers(qt.QAbstractItemView.NoEditTriggers)
         self.table.setHorizontalHeaderLabels(["Fixed Volume", "Moving Volume", "Status"])
         self.table.verticalHeader().setFixedWidth(20)
@@ -82,9 +118,8 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
         self.table.horizontalHeader().setSectionResizeMode(0, qt.QHeaderView.Stretch)
         self.table.horizontalHeader().setSectionResizeMode(1, qt.QHeaderView.Stretch)
         self.table.setColumnWidth(2, 70)
-        # self.table.horizontalHeader().setStretchLastSection(False)
         self.table.setSelectionBehavior(qt.QAbstractItemView.SelectRows)
-        self.table.connect('itemSelectionChanged()', self.check_state)
+        self.table.connect('itemSelectionChanged()', self.update_tools)
 
         layout = qt.QVBoxLayout()
         layout.addWidget(qt.QLabel("Insert description here"))
@@ -108,77 +143,119 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
         self.saveButton.enabled = False
         self.saveButton.connect('clicked(bool)', self.click_save)
 
-        layout = qt.QHBoxLayout()
+        self.toolBox = qt.QFrame()
+        layout = qt.QHBoxLayout(self.toolBox)
         layout.addWidget(self.addButton)
         layout.addWidget(self.removeButton)
         layout.addWidget(self.executeButton)
         layout.addWidget(self.saveButton)
         layout.setContentsMargins(10, 0, 10, 20)
-        return layout
+        return self.toolBox
 
-    # state checking ------------------------------------------------------------------------------
-    def check_state(self):
+    def build_progress(self):
+        self.progressBar = qt.QProgressBar()
+        self.progressBar.minimum = 0
+        self.progressBar.maximum = 100
+        self.progressBar.value = 0
+
+        self.cancelButton = qt.QPushButton("Cancel Execution")
+        self.cancelButton.connect('clicked(bool)', self.click_cancel)
+
+        # self.finishButton = qt.QPushButton("Finish")
+        # self.finishButton.visible = False
+        # self.finishButton.connect('clicked(bool)', self.click_finish)
+
+        self.progressBox = qt.QFrame()
+        self.progressBox.hide()
+        layout = qt.QHBoxLayout(self.progressBox)
+        layout.addWidget(self.progressBar)
+        layout.addWidget(self.cancelButton)
+        # layout.addWidget(self.finishButton)
+        layout.setContentsMargins(10, 0, 10, 20)
+        return self.progressBox
+
+    # main updation ------------------------------------------------------------------------------
+    def update_all(self):
         self.update_table()
         self.update_tools()
 
-    def update_table(self):
-        self.table.setRowCount(len(self.pairs))
-        for p in self.pairs:
-            if p.status == PairStatus.INITIALIZING: self.initialize_table_row(p)
-            self.update_table_row(p)
-
     def update_tools(self):
-        selection = self.table.selectedRanges()
-        if len(selection) == 0:
-            self.removeButton.enabled = self.saveButton.enabled = False
-        elif selection[0].rowCount() > 0:
-            self.removeButton.enabled = True
+        if self.state == IntraSampleRegistrationState.INPUT:
+            self.toolBox.show()
+            self.progressBox.hide()
+            toExecute = sum(pair.status == PairStatus.READY for pair in self.pairs)
+            self.executeButton.enabled = toExecute > 0
+            self.executeButton.setText("Execute (" + str(toExecute) + ")")
+            self.executeButton.enabled = True if toExecute > 0 else False
+            self.removeButton.enabled = True if len(self.table.selectedRanges()) > 0 and self.table.selectedRanges()[0].rowCount() > 0 else False
+        elif self.state == IntraSampleRegistrationState.EXECUTION:
+            self.toolBox.hide()
+            self.progressBox.show()
+            # TODO update progress
 
-    def update_table_row(self, pair):
-        i = self.pairs.index(pair)
-        self.table.cellWidget(i, 0).setCurrentNode(pair.fixed)
-        self.table.cellWidget(i, 1).setCurrentNode(pair.moving)
-        # self.table.item(i, 2).setText(pair.StatusString())
-        self.table.item(i, 2).setText(pair.status)
+    def update_table(self):
+        for i, pair in enumerate(self.pairs):
+            self.update_row_status(pair)
+            self.update_row(pair, i)
 
-    def initialize_table_row(self, pair):
-        i = self.pairs.index(pair)
-        def selector():
-            s = slicer.qMRMLNodeComboBox()
-            s.nodeTypes = ["vtkMRMLScalarVolumeNode"]
-            s.addEnabled = s.noneEnabled = False
-            s.renameEnabled = True
-            s.setMRMLScene(slicer.mrmlScene)
-            # s.connect("currentNodeChanged(bool)", self.click_input_selector)
-            return s
-        self.table.setCellWidget(i, 0, selector())
-        self.table.setCellWidget(i, 1, selector())
-        item = qt.QTableWidgetItem(pair.StatusString())
-        item.setTextAlignment(qt.Qt.AlignCenter)
-        self.table.setItem(i, 2, item)
-        # pair.status = PairStatus.INITIALIZED
-        pair.status = i
+    def update_row_status(self, pair):
+        if self.state == IntraSampleRegistrationState.INPUT:
+            if pair.moving.currentNode() is None or pair.fixed.currentNode() is None: pair.status = PairStatus.LOADING
+            if pair.moving.currentNode() is not None and pair.fixed.currentNode() is not None: pair.status = PairStatus.READY
+        elif self.state == IntraSampleRegistrationState.EXECUTION:
+            # todo add progress to status indicator
+            pass
+
+    def update_row(self, pair, i):
+        self.table.setCellWidget(i, 0, pair.fixed)
+        self.table.setCellWidget(i, 1, pair.moving)
+        if self.table.item(i, 2) is None: self.table.setItem(i, 2, build_text_item())
+        self.table.item(i, 2).setText(pair.StatusString())
 
     # button actions --------------------------------------
     def click_add(self):
-        self.pairs.append(Pair())
-        self.check_state()
+        self.pairs.append(Pair(on_click=self.update_all))
+        self.table.insertRow(self.table.rowCount)
+        self.update_all()
 
     def click_remove(self):
         selection = self.table.selectedRanges()[0]
-        del self.pairs[max(selection.topRow(), 0) : selection.bottomRow()+1]
-        if len(self.pairs) == 0: self.pairs.append(Pair())
-        self.check_state()
+        for i in reversed(range(max(selection.topRow(), 0), min(selection.bottomRow()+1, self.table.rowCount))):
+            del self.pairs[i]
+            self.table.removeRow(i)
+        self.update_all()
 
     def click_execute(self):
-        pass
+        self.state = IntraSampleRegistrationState.EXECUTION
+        readyPairs = []
+        for pair in self.pairs:
+            if pair.status == PairStatus.READY:
+                readyPairs.append(pair)
+                pair.status = PairStatus.PENDING
+            pair.disable()
+        self.update_all()
+        IntraSampleRegistrationLogic().execute_batch(readyPairs, self.update_all)
+
+    def click_cancel(self):
+        # TODO
+        self.state = IntraSampleRegistrationState.INPUT
+        for pair in self.pairs: pair.enable()
+        self.update_all()
+
+    def click_finish(self):
+        # TODO
+        self.state = IntraSampleRegistrationState.INPUT
+        for pair in self.pairs: pair.enable()
+        self.update_all()
 
     def click_save(self):
         pass
 
 
 class IntraSampleRegistrationLogic(ScriptedLoadableModuleLogic):
-    pass
+    @staticmethod
+    def execute_batch(pairs, updater):
+        pass
 
 
 class IntraSampleRegistrationTest(ScriptedLoadableModuleTest):
