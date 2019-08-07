@@ -167,16 +167,16 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
         self.cancelButton = qt.QPushButton("Cancel Execution")
         self.cancelButton.connect('clicked(bool)', self.click_cancel)
 
-        # self.finishButton = qt.QPushButton("Finish")
-        # self.finishButton.visible = False
-        # self.finishButton.connect('clicked(bool)', self.click_finish)
+        self.finishButton = qt.QPushButton("Finish")
+        self.finishButton.visible = False
+        self.finishButton.connect('clicked(bool)', self.click_finish)
 
         self.progressBox = qt.QFrame()
         self.progressBox.hide()
         row = qt.QHBoxLayout()
         row.addWidget(self.progressBar)
         row.addWidget(self.cancelButton)
-        # row.addWidget(self.finishButton)
+        row.addWidget(self.finishButton)
         layout = qt.QVBoxLayout(self.progressBox)
         layout.addWidget(qt.QLabel("Parameters: Elastix Rigid Registration"))
         layout.addWidget(self.progressStatus)
@@ -210,8 +210,9 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
 
     def update_row_status(self, pair):
         if self.state == IntraSampleRegistrationState.INPUT:
-            if pair.moving.currentNode() is None or pair.fixed.currentNode() is None: pair.status = PairStatus.LOADING
-            if pair.moving.currentNode() is not None and pair.fixed.currentNode() is not None: pair.status = PairStatus.READY
+            f, m = pair.fixed.currentNode(), pair.moving.currentNode()
+            if f is None or m is None: pair.status = PairStatus.LOADING
+            elif pair.status is not PairStatus.COMPLETE: pair.status = PairStatus.READY
 
     def update_row(self, pair, i):
         self.table.setCellWidget(i, 0, pair.fixed)
@@ -235,9 +236,9 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
             progress = DeepLearningPreProcessModule.DeepLearningPreProcessModuleLogic.process_rigid_progress(text)
             if progress is not None:
                 self.progressBar.value = progress
-                executing = len([p for p in self.pairs if p.status == PairStatus.EXECUTING])
-                total = len([p for p in self.pairs if p.status in [PairStatus.COMPLETE, PairStatus.PENDING]]) + executing
-                self.progressBar.setFormat(str(progress) + '% (' + str(executing) + ' of ' + str(total) + ')')
+                executed = len([p for p in self.pairs if p.status in [PairStatus.EXECUTING, PairStatus.COMPLETE]])
+                total = len([p for p in self.pairs if p.status == PairStatus.PENDING]) + executed
+                self.progressBar.setFormat(str(progress) + '% (' + str(executed) + ' of ' + str(total) + ')')
                 # if progress is 100:
                 #     self.rigidProgress.visible = False
                 #     p = qt.QPalette()
@@ -267,7 +268,10 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
                 pair.status = PairStatus.PENDING
             pair.disable()
         self.update_all()
-        IntraSampleRegistrationLogic().execute_batch(readyPairs, self.update_progress)
+        def finish():
+            self.cancelButton.visible = False
+            self.finishButton.visible = True
+        IntraSampleRegistrationLogic().execute_batch(readyPairs, self.update_progress, finish)
 
     def click_cancel(self):
         # TODO
@@ -287,7 +291,7 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
 
 class IntraSampleRegistrationLogic(ScriptedLoadableModuleLogic):
     @staticmethod
-    def execute_batch(pairs, progress_updater):
+    def execute_batch(pairs, progress_updater, finish):
         for pair in pairs:
             pair.status = PairStatus.EXECUTING
             progress_updater()
@@ -299,6 +303,7 @@ class IntraSampleRegistrationLogic(ScriptedLoadableModuleLogic):
             )
             pair.status = PairStatus.COMPLETE
             progress_updater()
+        finish()
 
 
 class IntraSampleRegistrationTest(ScriptedLoadableModuleTest):
