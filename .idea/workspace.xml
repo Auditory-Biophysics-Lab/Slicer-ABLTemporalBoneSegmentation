@@ -6,7 +6,6 @@
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/DeepLearningPreProcessModule/DeepLearningPreProcessModule.py" beforeDir="false" afterPath="$PROJECT_DIR$/DeepLearningPreProcessModule/DeepLearningPreProcessModule.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/IntraSampleRegistration/IntraSampleRegistration.py" beforeDir="false" afterPath="$PROJECT_DIR$/IntraSampleRegistration/IntraSampleRegistration.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/IntraSampleRegistration/Utilities/InterfaceTools.py" beforeDir="false" afterPath="$PROJECT_DIR$/IntraSampleRegistration/Utilities/InterfaceTools.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -128,7 +127,7 @@
       <workItem from="1562855356021" duration="74719000" />
       <workItem from="1563820532694" duration="26878000" />
       <workItem from="1563990867805" duration="45301000" />
-      <workItem from="1564510496648" duration="51514000" />
+      <workItem from="1564510496648" duration="59486000" />
     </task>
     <servers />
   </component>

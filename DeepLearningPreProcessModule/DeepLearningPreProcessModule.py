@@ -280,11 +280,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
 
     def build_rigid_registration(self):
         section = InterfaceTools.build_dropdown("Rigid Registration", disabled=True)
-        # row = qt.QHBoxLayout()
-        # row.addWidget(qt.QLabel("Parameters: Elastix Rigid Registration"))
-        # row.addWidget(self.rigidStatus)
         layout = qt.QVBoxLayout(section)
-        # layout.addLayout(row)
         layout.addWidget(qt.QLabel("Parameters: Elastix Rigid Registration"))
         layout.addWidget(self.rigidStatus)
         layout.addWidget(self.rigidProgress)
@@ -358,15 +354,10 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
             # self.sectionsList[i].collapsed = not enabled
 
     def update_slicer_view(self):
-        slicer.app.layoutManager().setLayout(21)
         moving = self.intermediateNode.GetID() if self.intermediateNode is not None else self.movingSelector.currentNode().GetID() if self.movingSelector.currentNode() is not None else None
         atlas = overlay = self.atlasNode.GetID() if self.atlasNode is not None else None
         overlayOpacity = 0.4 if self.fiducialAtlasOverlay.isChecked() else 0
-        for c in ['Red', 'Yellow', 'Green']:
-            slicer.app.layoutManager().sliceWidget(c).sliceLogic().GetSliceCompositeNode().SetBackgroundVolumeID(moving)
-            slicer.app.layoutManager().sliceWidget(c).sliceLogic().GetSliceCompositeNode().SetForegroundVolumeID(overlay)
-            slicer.app.layoutManager().sliceWidget(c).sliceLogic().GetSliceCompositeNode().SetForegroundOpacity(overlayOpacity)
-            slicer.app.layoutManager().sliceWidget(c + '+').sliceLogic().GetSliceCompositeNode().SetBackgroundVolumeID(atlas)
+        DeepLearningPreProcessModuleLogic.update_slicer_view(moving, atlas, overlayOpacity)
 
     def update_fiducial_table(self):
         completed = 0
@@ -555,6 +546,15 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
 
 # Main Logic
 class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
+    @staticmethod
+    def update_slicer_view(moving, atlas, overlay_opacity):
+        slicer.app.layoutManager().setLayout(21)
+        for c in ['Red', 'Yellow', 'Green']:
+            slicer.app.layoutManager().sliceWidget(c).sliceLogic().GetSliceCompositeNode().SetBackgroundVolumeID(moving)
+            slicer.app.layoutManager().sliceWidget(c).sliceLogic().GetSliceCompositeNode().SetForegroundVolumeID(atlas)
+            slicer.app.layoutManager().sliceWidget(c).sliceLogic().GetSliceCompositeNode().SetForegroundOpacity(overlay_opacity)
+            slicer.app.layoutManager().sliceWidget(c + '+').sliceLogic().GetSliceCompositeNode().SetBackgroundVolumeID(atlas)
+
     @staticmethod
     def clear_all_markups_from_scene():
         for n in slicer.mrmlScene.GetNodesByClass("vtkMRMLMarkupsFiducialNode"): slicer.mrmlScene.RemoveNode(n)

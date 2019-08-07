@@ -4,6 +4,7 @@ import vtk
 import qt
 import ctk
 import slicer
+import DeepLearningPreProcessModule
 from slicer.ScriptedLoadableModule import *
 from Utilities.InterfaceTools import InterfaceTools
 
@@ -88,6 +89,7 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
     executeButton = None
     saveButton = None
     progressBox = None
+    progressStatus = None
     progressBar = None
     cancelButton = None
     finishButton = None
@@ -106,10 +108,13 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
         self.layout.addLayout(self.build_table())
         self.layout.addWidget(self.build_tools())
         self.layout.addWidget(self.build_progress())
-        self.layout.addStretch()
+        # self.layout.addStretch()
         self.click_add()
 
     def build_table(self):
+        # label = qt.QLabel("")   # TODO
+        # label.setWordWrap(True)
+
         self.table = qt.QTableWidget(0, 3)
         self.table.setEditTriggers(qt.QAbstractItemView.NoEditTriggers)
         self.table.setHorizontalHeaderLabels(["Fixed Volume", "Moving Volume", "Status"])
@@ -119,10 +124,9 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
         self.table.horizontalHeader().setSectionResizeMode(1, qt.QHeaderView.Stretch)
         self.table.setColumnWidth(2, 70)
         self.table.setSelectionBehavior(qt.QAbstractItemView.SelectRows)
-        self.table.connect('itemSelectionChanged()', self.update_tools)
-
+        self.table.connect('itemSelectionChanged()', self.update_selection)
         layout = qt.QVBoxLayout()
-        layout.addWidget(qt.QLabel("Insert description here"))
+        # layout.addWidget(label)
         layout.addWidget(self.table)
         layout.setMargin(10)
         return layout
@@ -153,6 +157,8 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
         return self.toolBox
 
     def build_progress(self):
+        self.progressStatus = qt.QLabel("Status:")
+
         self.progressBar = qt.QProgressBar()
         self.progressBar.minimum = 0
         self.progressBar.maximum = 100
@@ -167,10 +173,14 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
 
         self.progressBox = qt.QFrame()
         self.progressBox.hide()
-        layout = qt.QHBoxLayout(self.progressBox)
-        layout.addWidget(self.progressBar)
-        layout.addWidget(self.cancelButton)
-        # layout.addWidget(self.finishButton)
+        row = qt.QHBoxLayout()
+        row.addWidget(self.progressBar)
+        row.addWidget(self.cancelButton)
+        # row.addWidget(self.finishButton)
+        layout = qt.QVBoxLayout(self.progressBox)
+        layout.addWidget(qt.QLabel("Parameters: Elastix Rigid Registration"))
+        layout.addWidget(self.progressStatus)
+        layout.addLayout(row)
         layout.setContentsMargins(10, 0, 10, 20)
         return self.progressBox
 
@@ -191,7 +201,7 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
         elif self.state == IntraSampleRegistrationState.EXECUTION:
             self.toolBox.hide()
             self.progressBox.show()
-            # TODO update progress
+            # TODO move update progress to here?
 
     def update_table(self):
         for i, pair in enumerate(self.pairs):
@@ -202,15 +212,39 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
         if self.state == IntraSampleRegistrationState.INPUT:
             if pair.moving.currentNode() is None or pair.fixed.currentNode() is None: pair.status = PairStatus.LOADING
             if pair.moving.currentNode() is not None and pair.fixed.currentNode() is not None: pair.status = PairStatus.READY
-        elif self.state == IntraSampleRegistrationState.EXECUTION:
-            # todo add progress to status indicator
-            pass
 
     def update_row(self, pair, i):
         self.table.setCellWidget(i, 0, pair.fixed)
         self.table.setCellWidget(i, 1, pair.moving)
         if self.table.item(i, 2) is None: self.table.setItem(i, 2, build_text_item())
         self.table.item(i, 2).setText(pair.StatusString())
+
+    def update_selection(self):
+        rows = self.table.selectionModel().selectedRows()
+        if len(rows) == 1:
+            pair = self.pairs[rows[0].row()]
+            f = pair.fixed.currentNode().GetID() if pair.fixed.currentNode() is not None else None
+            m = pair.moving.currentNode().GetID() if pair.moving.currentNode() is not None else None
+            DeepLearningPreProcessModule.DeepLearningPreProcessModuleLogic.update_slicer_view(f, m, 0.4)
+        self.update_tools()
+
+    def update_progress(self, text=None):
+        if text is not None:
+            print(text)
+            self.progressStatus.text = 'Status: ' + ((text[:60] + '..') if len(text) > 60 else text)
+            progress = DeepLearningPreProcessModule.DeepLearningPreProcessModuleLogic.process_rigid_progress(text)
+            if progress is not None:
+                self.progressBar.value = progress
+                executing = len([p for p in self.pairs if p.status == PairStatus.EXECUTING])
+                total = len([p for p in self.pairs if p.status in [PairStatus.COMPLETE, PairStatus.PENDING]]) + executing
+                self.progressBar.setFormat(str(progress) + '% (' + str(executing) + ' of ' + str(total) + ')')
+                # if progress is 100:
+                #     self.rigidProgress.visible = False
+                #     p = qt.QPalette()
+                #     p.setColor(qt.QPalette.WindowText, qt.Qt.green)
+                #     self.rigidStatus.setPalette(p)
+        self.update_all()
+        slicer.app.processEvents()
 
     # button actions --------------------------------------
     def click_add(self):
@@ -219,8 +253,7 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
         self.update_all()
 
     def click_remove(self):
-        selection = self.table.selectedRanges()[0]
-        for i in reversed(range(max(selection.topRow(), 0), min(selection.bottomRow()+1, self.table.rowCount))):
+        for i in reversed(self.table.selectionModel().selectedRows()):
             del self.pairs[i]
             self.table.removeRow(i)
         self.update_all()
@@ -234,7 +267,7 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
                 pair.status = PairStatus.PENDING
             pair.disable()
         self.update_all()
-        IntraSampleRegistrationLogic().execute_batch(readyPairs, self.update_all)
+        IntraSampleRegistrationLogic().execute_batch(readyPairs, self.update_progress)
 
     def click_cancel(self):
         # TODO
@@ -254,8 +287,18 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
 
 class IntraSampleRegistrationLogic(ScriptedLoadableModuleLogic):
     @staticmethod
-    def execute_batch(pairs, updater):
-        pass
+    def execute_batch(pairs, progress_updater):
+        for pair in pairs:
+            pair.status = PairStatus.EXECUTING
+            progress_updater()
+            DeepLearningPreProcessModule.DeepLearningPreProcessModuleLogic.apply_rigid_registration(
+                atlas_node=pair.fixed.currentNode(),
+                moving_node=pair.moving.currentNode(),
+                mask_node=None,
+                log_callback=progress_updater
+            )
+            pair.status = PairStatus.COMPLETE
+            progress_updater()
 
 
 class IntraSampleRegistrationTest(ScriptedLoadableModuleTest):

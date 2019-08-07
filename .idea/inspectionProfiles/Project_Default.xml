@@ -39,6 +39,7 @@
           <option value="qt.*" />
           <option value="vtk.*" />
           <option value="Elastix" />
+          <option value="DeepLearningPreProcessModule" />
         </list>
       </option>
     </inspection_tool>
