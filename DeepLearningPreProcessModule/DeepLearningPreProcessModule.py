@@ -355,7 +355,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
 
     def update_slicer_view(self):
         moving = self.intermediateNode.GetID() if self.intermediateNode is not None else self.movingSelector.currentNode().GetID() if self.movingSelector.currentNode() is not None else None
-        atlas = overlay = self.atlasNode.GetID() if self.atlasNode is not None else None
+        atlas = self.atlasNode.GetID() if self.atlasNode is not None else None
         overlayOpacity = 0.4 if self.fiducialAtlasOverlay.isChecked() else 0
         DeepLearningPreProcessModuleLogic.update_slicer_view(moving, atlas, overlayOpacity)
 
@@ -418,18 +418,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         if validity: self.update_slicer_view()
 
     def click_save_moving(self):
-        name = self.movingSelector.currentNode().GetName()
-        dialog = qt.QFileDialog(None, "Save Moving Volume '" + name + "'")
-        dialog.setDirectory(".")
-        dialog.setOptions(qt.QFileDialog.DontUseNativeDialog)
-        dialog.setFileMode(qt.QFileDialog.AnyFile)
-        dialog.setNameFilter(';;'.join([t['title'] for t in supportedSaveTypes]))
-        dialog.selectFile(name.replace(' ', ''))
-        dialog.setAcceptMode(qt.QFileDialog.AcceptSave)
-        if dialog.exec_() != qt.QDialog.Accepted: return
-        o = slicer.util.saveNode(node=self.movingSelector.currentNode(),
-                                 filename=dialog.selectedFiles()[0].replace(' ', '') + next(t for t in supportedSaveTypes if t["title"] == dialog.selectedNameFilter())['value'])
-        print(o)
+        DeepLearningPreProcessModuleLogic.open_save_node_dialog(self.movingSelector.currentNode())
 
     def click_resample_volume(self):
         def function():
@@ -686,6 +675,19 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
         elif text.startswith('Resampling image and writing to disk'): progress = 96
         elif text.startswith('Registration is completed'): progress = 100
         return progress
+
+    @staticmethod
+    def open_save_node_dialog(node):
+        name = node.GetName()
+        dialog = qt.QFileDialog(None, "Save Moving Volume '" + name + "'")
+        dialog.setDirectory(".")
+        dialog.setOptions(qt.QFileDialog.DontUseNativeDialog)
+        dialog.setFileMode(qt.QFileDialog.AnyFile)
+        dialog.setNameFilter(';;'.join([t['title'] for t in supportedSaveTypes]))
+        dialog.selectFile(name.replace(' ', ''))
+        dialog.setAcceptMode(qt.QFileDialog.AcceptSave)
+        if dialog.exec_() != qt.QDialog.Accepted: return
+        o = slicer.util.saveNode(node=node, filename=dialog.selectedFiles()[0].replace(' ', '') + next(t for t in supportedSaveTypes if t["title"] == dialog.selectedNameFilter())['value'])
 
     # TODO remove
     # def run_flip(self, volume):

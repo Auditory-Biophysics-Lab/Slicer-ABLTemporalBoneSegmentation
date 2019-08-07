@@ -114,11 +114,10 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
     def build_table(self):
         # label = qt.QLabel("")   # TODO
         # label.setWordWrap(True)
-
         self.table = qt.QTableWidget(0, 3)
         self.table.setEditTriggers(qt.QAbstractItemView.NoEditTriggers)
         self.table.setHorizontalHeaderLabels(["Fixed Volume", "Moving Volume", "Status"])
-        self.table.verticalHeader().setFixedWidth(20)
+        self.table.verticalHeader().setFixedWidth(30)
         self.table.verticalHeader().setSectionResizeMode(qt.QHeaderView.Fixed)
         self.table.horizontalHeader().setSectionResizeMode(0, qt.QHeaderView.Stretch)
         self.table.horizontalHeader().setSectionResizeMode(1, qt.QHeaderView.Stretch)
@@ -133,20 +132,21 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
 
     def build_tools(self):
         self.addButton = qt.QPushButton("Add")
-        self.addButton.setFixedWidth(90)
-        self.removeButton = qt.QPushButton("Remove")
+        self.addButton.setFixedSize(90, 36)
         self.addButton.connect('clicked(bool)', self.click_add)
-        self.removeButton.setFixedWidth(90)
+        self.removeButton = qt.QPushButton("Remove")
+        self.removeButton.setFixedSize(90, 36)
         self.removeButton.enabled = False
         self.removeButton.connect('clicked(bool)', self.click_remove)
         self.executeButton = qt.QPushButton("Execute")
+        self.executeButton.setFixedHeight(36)
         self.executeButton.enabled = False
         self.executeButton.connect('clicked(bool)', self.click_execute)
-        self.saveButton = qt.QPushButton("Save")
-        self.saveButton.setFixedWidth(60)
+        self.saveButton = qt.QPushButton("Save Moved")
+        self.saveButton.setFixedSize(90, 36)
         self.saveButton.enabled = False
         self.saveButton.connect('clicked(bool)', self.click_save)
-
+        # FRAME
         self.toolBox = qt.QFrame()
         layout = qt.QHBoxLayout(self.toolBox)
         layout.addWidget(self.addButton)
@@ -158,19 +158,19 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
 
     def build_progress(self):
         self.progressStatus = qt.QLabel("Status:")
-
         self.progressBar = qt.QProgressBar()
         self.progressBar.minimum = 0
         self.progressBar.maximum = 100
         self.progressBar.value = 0
-
+        self.progressBar.setFixedHeight(36)
         self.cancelButton = qt.QPushButton("Cancel Execution")
         self.cancelButton.connect('clicked(bool)', self.click_cancel)
-
+        self.cancelButton.setFixedHeight(36)
         self.finishButton = qt.QPushButton("Finish")
         self.finishButton.visible = False
         self.finishButton.connect('clicked(bool)', self.click_finish)
-
+        self.finishButton.setFixedHeight(36)
+        # FRAME
         self.progressBox = qt.QFrame()
         self.progressBox.hide()
         row = qt.QHBoxLayout()
@@ -197,7 +197,9 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
             self.executeButton.enabled = toExecute > 0
             self.executeButton.setText("Execute (" + str(toExecute) + ")")
             self.executeButton.enabled = True if toExecute > 0 else False
-            self.removeButton.enabled = True if len(self.table.selectedRanges()) > 0 and self.table.selectedRanges()[0].rowCount() > 0 else False
+            selection = self.table.selectionModel().selectedRows()
+            self.removeButton.enabled = True if len(selection) > 0 else False
+            self.saveButton.enabled = True if len(selection) == 1 and self.pairs[selection[0].row()].status == PairStatus.COMPLETE else False   # TODO add multi save
         elif self.state == IntraSampleRegistrationState.EXECUTION:
             self.toolBox.hide()
             self.progressBox.show()
@@ -274,19 +276,17 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
         IntraSampleRegistrationLogic().execute_batch(readyPairs, self.update_progress, finish)
 
     def click_cancel(self):
-        # TODO
-        self.state = IntraSampleRegistrationState.INPUT
-        for pair in self.pairs: pair.enable()
-        self.update_all()
+        # TODO add real cancel
+        self.click_finish()
 
     def click_finish(self):
-        # TODO
         self.state = IntraSampleRegistrationState.INPUT
         for pair in self.pairs: pair.enable()
         self.update_all()
 
     def click_save(self):
-        pass
+        for row in self.table.selectionModel().selectedRows():
+            DeepLearningPreProcessModule.DeepLearningPreProcessModuleLogic.open_save_node_dialog(self.pairs[row.row()].moving.currentNode())
 
 
 class IntraSampleRegistrationLogic(ScriptedLoadableModuleLogic):
