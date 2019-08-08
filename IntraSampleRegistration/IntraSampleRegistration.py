@@ -5,6 +5,7 @@ import qt
 import ctk
 import slicer
 import DeepLearningPreProcessModule
+import Elastix
 from slicer.ScriptedLoadableModule import *
 from Utilities.InterfaceTools import InterfaceTools
 
@@ -40,8 +41,6 @@ class Pair:
     def __init__(self, on_click):
         self.fixed = build_volume_selector(on_click)
         self.moving = build_volume_selector(on_click)
-        # self.statusText =
-        # self.progress =
         self.status = PairStatus.LOADING
 
     def disable(self):
@@ -97,6 +96,7 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
     # Data members ------------
     state = IntraSampleRegistrationState.INPUT
     pairs = []
+    elastixLogic = Elastix.ElastixLogic()
 
     # initialization ------------------------------------------------------------------------------
     def __init__(self, parent):
@@ -203,7 +203,6 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
         elif self.state == IntraSampleRegistrationState.EXECUTION:
             self.toolBox.hide()
             self.progressBox.show()
-            # TODO move update progress to here?
 
     def update_table(self):
         for i, pair in enumerate(self.pairs):
@@ -241,11 +240,6 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
                 executed = len([p for p in self.pairs if p.status in [PairStatus.EXECUTING, PairStatus.COMPLETE]])
                 total = len([p for p in self.pairs if p.status == PairStatus.PENDING]) + executed
                 self.progressBar.setFormat(str(progress) + '% (' + str(executed) + ' of ' + str(total) + ')')
-                # if progress is 100:
-                #     self.rigidProgress.visible = False
-                #     p = qt.QPalette()
-                #     p.setColor(qt.QPalette.WindowText, qt.Qt.green)
-                #     self.rigidStatus.setPalette(p)
         self.update_all()
         slicer.app.processEvents()
 
@@ -257,8 +251,8 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
 
     def click_remove(self):
         for i in reversed(self.table.selectionModel().selectedRows()):
-            del self.pairs[i]
-            self.table.removeRow(i)
+            del self.pairs[i.row()]
+            self.table.removeRow(i.row())
         self.update_all()
 
     def click_execute(self):
@@ -273,10 +267,10 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
         def finish():
             self.cancelButton.visible = False
             self.finishButton.visible = True
-        IntraSampleRegistrationLogic().execute_batch(readyPairs, self.update_progress, finish)
+        IntraSampleRegistrationLogic().execute_batch(self.elastixLogic, readyPairs, self.update_progress, finish)
 
     def click_cancel(self):
-        # TODO add real cancel
+        DeepLearningPreProcessModule.DeepLearningPreProcessModuleLogic.attempt_abort_rigid_registration(self.elastixLogic)
         self.click_finish()
 
     def click_finish(self):
@@ -285,22 +279,24 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
         self.update_all()
 
     def click_save(self):
-        for row in self.table.selectionModel().selectedRows():
-            DeepLearningPreProcessModule.DeepLearningPreProcessModuleLogic.open_save_node_dialog(self.pairs[row.row()].moving.currentNode())
+        for i in self.table.selectionModel().selectedRows():
+            DeepLearningPreProcessModule.DeepLearningPreProcessModuleLogic.open_save_node_dialog(self.pairs[i.row()].moving.currentNode())
 
 
 class IntraSampleRegistrationLogic(ScriptedLoadableModuleLogic):
     @staticmethod
-    def execute_batch(pairs, progress_updater, finish):
+    def execute_batch(elastix, pairs, progress_updater, finish):
         for pair in pairs:
             pair.status = PairStatus.EXECUTING
             progress_updater()
-            DeepLearningPreProcessModule.DeepLearningPreProcessModuleLogic.apply_rigid_registration(
+            output = DeepLearningPreProcessModule.DeepLearningPreProcessModuleLogic.apply_rigid_registration(
+                elastix=elastix,
                 atlas_node=pair.fixed.currentNode(),
                 moving_node=pair.moving.currentNode(),
                 mask_node=None,
                 log_callback=progress_updater
             )
+            pair.moving.setCurrentNode(output)
             pair.status = PairStatus.COMPLETE
             progress_updater()
         finish()

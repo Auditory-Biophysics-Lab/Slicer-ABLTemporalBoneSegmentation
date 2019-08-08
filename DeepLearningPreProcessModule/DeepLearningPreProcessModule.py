@@ -55,6 +55,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
     fiducialSet = []
     intermediateNode = None
     sectionsList = []
+    elastixLogic = Elastix.ElastixLogic()
 
     # UI members -------------- (in order of appearance)
     clearMarkupsCheckbox = None
@@ -82,6 +83,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
     rigidStatus = None
     rigidProgress = None
     rigidApplyButton = None
+    rigidCancelButton = None
 
     # initialization ------------------------------------------------------------------------------
     def __init__(self, parent):
@@ -178,6 +180,9 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         self.rigidProgress.maximum = 100
         self.rigidProgress.value = 0
         self.rigidProgress.visible = False
+        self.rigidCancelButton = qt.QPushButton("Cancel Rigid Registration")
+        self.rigidCancelButton.visible = False
+        self.rigidCancelButton.connect('clicked(bool)', self.click_rigid_cancel)
         self.rigidApplyButton = qt.QPushButton("Apply\n Rigid Registration")
         self.rigidApplyButton.connect('clicked(bool)', self.click_rigid_apply)
 
@@ -283,8 +288,9 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         layout = qt.QVBoxLayout(section)
         layout.addWidget(qt.QLabel("Parameters: Elastix Rigid Registration"))
         layout.addWidget(self.rigidStatus)
-        layout.addWidget(self.rigidProgress)
         layout.addWidget(self.rigidApplyButton)
+        layout.addWidget(self.rigidProgress)
+        layout.addWidget(self.rigidCancelButton)
         layout.setMargin(10)
         return section
 
@@ -305,28 +311,27 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
             self.atlasNode = self.atlasFiducialNode = self.inputFiducialNode = None
         if self.clearMarkupsCheckbox.isChecked(): DeepLearningPreProcessModuleLogic.clear_all_markups_from_scene()
         # check if we need an atlas imported
-        # if self.atlasNode is None or True:
-        if True:
-            self.atlasNode, self.atlasFiducialNode, self.maskNode = DeepLearningPreProcessModuleLogic().load_atlas_and_fiducials_and_mask(side_indicator)
-            self.inputFiducialNode, self.fiducialSet = DeepLearningPreProcessModuleLogic().initialize_fiducial_set(self.atlasFiducialNode, self.fiducialPlacer, name=self.inputSelector.currentNode().GetName())
-            self.fiducialTabs.clear()
-            for f in self.fiducialSet:
-                tab, f["table"] = InterfaceTools.build_fiducial_tab(f, self.click_fiducial_set_button, self.click_fiducial_clear_button)
-                self.fiducialTabs.addTab(tab, f["label"])
+        self.atlasNode, self.atlasFiducialNode, self.maskNode = DeepLearningPreProcessModuleLogic().load_atlas_and_fiducials_and_mask(side_indicator)
+        self.inputFiducialNode, self.fiducialSet = DeepLearningPreProcessModuleLogic().initialize_fiducial_set(self.atlasFiducialNode, self.fiducialPlacer, name=self.inputSelector.currentNode().GetName())
+        self.fiducialTabs.clear()
+        for f in self.fiducialSet:
+            tab, f["table"] = InterfaceTools.build_fiducial_tab(f, self.click_fiducial_set_button, self.click_fiducial_clear_button)
+            self.fiducialTabs.addTab(tab, f["label"])
         # set spacing
         spacing = DeepLearningPreProcessModuleLogic().get_um_spacing(self.inputSelector.currentNode().GetSpacing())
         self.resampleInfoLabel.text = "The input volume was imported with a spacing of (X: " + str(spacing[0]) + "um,  Y: " + str(spacing[1]) + "um,  Z: " + str(spacing[2]) + "um)"
 
     def initialize_moving_volume(self):
-        node = slicer.vtkMRMLScalarVolumeNode()
-        current = self.inputSelector.currentNode()
-        node.Copy(current)
-        node.SetName(current.GetName() + ' [MOVING]')
-        slicer.mrmlScene.AddNode(node)
-        self.movingSelector.setCurrentNode(node)
+        # node = slicer.vtkMRMLScalarVolumeNode()
+        # current = self.inputSelector.currentNode()
+        # node.Copy(current)
+        # node.SetName(current.GetName() + ' [MOVING]')
+        # slicer.mrmlScene.AddNode(node)
+        # self.movingSelector.setCurrentNode(node)
+        self.movingSelector.setCurrentNode(self.inputSelector.currentNode())
         self.movingSelector.enabled = True
         self.movingSaveButton.enabled = True
-        spacing = DeepLearningPreProcessModuleLogic().get_um_spacing(node.GetSpacing())
+        spacing = DeepLearningPreProcessModuleLogic().get_um_spacing(self.movingSelector.currentNode().GetSpacing())
         self.resampleSpacingXBox.value, self.resampleSpacingYBox.value, self.resampleSpacingZBox.value = spacing[0], spacing[1], spacing[2]
 
     def process_transform(self, function, corresponding_button=None, set_moving_volume=False):
@@ -382,6 +387,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         if progress is not None: self.rigidProgress.value = progress
         if progress is 100:
             self.rigidProgress.visible = False
+            self.rigidCancelButton.visible = False
             p = qt.QPalette()
             p.setColor(qt.QPalette.WindowText, qt.Qt.green)
             self.rigidStatus.setPalette(p)
@@ -496,12 +502,20 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
             self.rigidStatus.setPalette(p)
             self.rigidProgress.value = 0
             self.rigidProgress.visible = True
+            self.rigidCancelButton.visible = True
             self.rigidApplyButton.visible = False
-            return DeepLearningPreProcessModuleLogic().apply_rigid_registration(atlas_node=self.atlasNode,
+            return DeepLearningPreProcessModuleLogic().apply_rigid_registration(elastix=self.elastixLogic,
+                                                                                atlas_node=self.atlasNode,
                                                                                 moving_node=self.movingSelector.currentNode(),
                                                                                 mask_node=self.maskNode,
                                                                                 log_callback=self.update_rigid_progress)
         self.process_transform(function, corresponding_button=self.rigidApplyButton, set_moving_volume=True)
+
+    def click_rigid_cancel(self):
+        self.rigidProgress.value = 0
+        self.rigidProgress.visible = False
+        self.rigidCancelButton.visible = False
+        DeepLearningPreProcessModuleLogic.attempt_abort_rigid_registration(self.elastixLogic)
 
     # TODO remove
     # def click_flip_volume(self):
@@ -565,13 +579,17 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
 
     @staticmethod
     def load_atlas_and_fiducials_and_mask(side_indicator):
+        atlasNode = slicer.mrmlScene.GetFirstNodeByName('Atlas_' + side_indicator)
+        atlasFiducialNode = slicer.mrmlScene.GetFirstNodeByName('Atlas_' + side_indicator + ' Fiducials')
         framePath = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Atlases/"
-        atlasNode = slicer.util.loadVolume(framePath + 'Atlas_' + side_indicator + '.mha', returnNode=True)[1]
-        atlasNode.HideFromEditorsOn()
-        atlasFiducialNode = slicer.util.loadMarkupsFiducialList(framePath + 'Fiducial_' + side_indicator + '.fcsv', returnNode=True)[1]
-        atlasFiducialNode.SetName('Atlas_' + side_indicator + ' Fiducials')
-        atlasFiducialNode.SetLocked(True)
-        atlasFiducialNode.HideFromEditorsOn()
+        if atlasNode is None:
+            atlasNode = slicer.util.loadVolume(framePath + 'Atlas_' + side_indicator + '.mha', returnNode=True)[1]
+            atlasNode.HideFromEditorsOn()
+        if atlasFiducialNode is None:
+            atlasFiducialNode = slicer.util.loadMarkupsFiducialList(framePath + 'Fiducial_' + side_indicator + '.fcsv', returnNode=True)[1]
+            atlasFiducialNode.SetName('Atlas_' + side_indicator + ' Fiducials')
+            atlasFiducialNode.SetLocked(True)
+            atlasFiducialNode.HideFromEditorsOn()
         maskNode = slicer.util.loadVolume(framePath + 'CochleaRegistrationMask_' + side_indicator + '.nrrd', returnNode=True)[1]
         return atlasNode, atlasFiducialNode, maskNode
 
@@ -637,26 +655,31 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
         return transformed_node
 
     @staticmethod
-    def apply_rigid_registration(atlas_node, moving_node, mask_node, log_callback):
+    def apply_rigid_registration(elastix, atlas_node, moving_node, mask_node, log_callback, copy=True):
+        outputVolumeNode = moving_node
+        if copy:
+            outputVolumeNode = slicer.vtkMRMLScalarVolumeNode()
+            outputVolumeNode.Copy(moving_node)
+            outputVolumeNode.SetName(moving_node.GetName() + " +Rigid")
         # transform_node = slicer.vtkMRMLTransformNode()
         # slicer.mrmlScene.AddNode(transform_node)
-        logic = Elastix.ElastixLogic()
-        logic.registrationParameterFilesDir = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + '/Resources/Parameters/'
-        logic.logStandardOutput = True
-        logic.logCallback = log_callback
-        logic.registerVolumes(
+        elastix.registrationParameterFilesDir = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + '/Resources/Parameters/'
+        elastix.logStandardOutput = True
+        elastix.logCallback = log_callback
+        elastix.registerVolumes(
             fixedVolumeNode=atlas_node,
             movingVolumeNode=moving_node,
             parameterFilenames={"Parameters_Rigid.txt"},
-            outputVolumeNode=moving_node,
+            outputVolumeNode=outputVolumeNode,
             # outputTransformNode=transform_node,
             fixedVolumeMaskNode=mask_node,
             movingVolumeMaskNode=mask_node
         )
         # moving_node.ApplyTransform(transform_node.GetTransformToParent())
         # moving_node.HardenTransform()
-        moving_node.SetName(moving_node.GetName() + " +Rigid")
-        return moving_node
+        outputVolumeNode.SetName(moving_node.GetName() + " +Rigid")
+        slicer.mrmlScene.AddNode(outputVolumeNode)
+        return outputVolumeNode
 
     @staticmethod
     def process_rigid_progress(text):
@@ -675,6 +698,10 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
         elif text.startswith('Resampling image and writing to disk'): progress = 96
         elif text.startswith('Registration is completed'): progress = 100
         return progress
+
+    @staticmethod
+    def attempt_abort_rigid_registration(elastix):
+        elastix.abortRequested = True
 
     @staticmethod
     def open_save_node_dialog(node):
