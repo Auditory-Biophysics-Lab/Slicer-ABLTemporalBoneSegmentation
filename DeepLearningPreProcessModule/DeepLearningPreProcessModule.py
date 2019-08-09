@@ -594,8 +594,8 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
         return atlasNode, atlasFiducialNode, maskNode
 
     @staticmethod
-    def get_um_spacing(node):
-        return [int(s*1000) for s in node]
+    def get_um_spacing(spacing):
+        return [int(s*1000) for s in spacing]
 
     @staticmethod
     def resample_image(image, spacing, interpolation):
