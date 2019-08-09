@@ -661,8 +661,8 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
             outputVolumeNode = slicer.vtkMRMLScalarVolumeNode()
             outputVolumeNode.Copy(moving_node)
             outputVolumeNode.SetName(moving_node.GetName() + " +Rigid")
-        # transform_node = slicer.vtkMRMLTransformNode()
-        # slicer.mrmlScene.AddNode(transform_node)
+        transform_node = slicer.vtkMRMLTransformNode()
+        slicer.mrmlScene.AddNode(transform_node)
         elastix.registrationParameterFilesDir = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + '/Resources/Parameters/'
         elastix.logStandardOutput = True
         elastix.logCallback = log_callback
@@ -670,13 +670,15 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
             fixedVolumeNode=atlas_node,
             movingVolumeNode=moving_node,
             parameterFilenames={"Parameters_Rigid.txt"},
-            outputVolumeNode=outputVolumeNode,
-            # outputTransformNode=transform_node,
+            # outputVolumeNode=outputVolumeNode,
+            outputTransformNode=transform_node,
             fixedVolumeMaskNode=mask_node,
             movingVolumeMaskNode=mask_node
         )
-        # moving_node.ApplyTransform(transform_node.GetTransformToParent())
-        # moving_node.HardenTransform()
+        print("TRANSFORM GENERATED: ")
+        print(transform_node)
+        outputVolumeNode.ApplyTransform(transform_node.GetTransformToParent())
+        outputVolumeNode.HardenTransform()
         outputVolumeNode.SetName(moving_node.GetName() + " +Rigid")
         slicer.mrmlScene.AddNode(outputVolumeNode)
         return outputVolumeNode
