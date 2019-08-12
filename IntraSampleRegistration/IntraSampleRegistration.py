@@ -1,15 +1,33 @@
-import os
-import unittest
-import vtk
 import qt
-import ctk
 import slicer
 import DeepLearningPreProcessModule
 import Elastix
 from slicer.ScriptedLoadableModule import *
-from Utilities.InterfaceTools import InterfaceTools
 
 
+# Interface tools
+class InterfaceTools:
+    def __init__(self, parent):
+        pass
+
+    @staticmethod
+    def build_volume_selector(on_click):
+        s = slicer.qMRMLNodeComboBox()
+        s.nodeTypes = ["vtkMRMLScalarVolumeNode"]
+        s.addEnabled = False
+        s.renameEnabled = s.noneEnabled = True
+        s.setMRMLScene(slicer.mrmlScene)
+        s.connect("currentNodeChanged(bool)", on_click)
+        return s
+
+    @staticmethod
+    def build_text_item():
+        i = qt.QTableWidgetItem("")
+        i.setTextAlignment(qt.Qt.AlignCenter)
+        return i
+
+
+# pair status enum
 class PairStatus:
     LOADING = 1
     READY = 2
@@ -19,28 +37,10 @@ class PairStatus:
     FAILED = 6
 
 
-# TODO move to interfaceTools
-def build_volume_selector(on_click):
-    s = slicer.qMRMLNodeComboBox()
-    s.nodeTypes = ["vtkMRMLScalarVolumeNode"]
-    s.addEnabled = False
-    s.renameEnabled = s.noneEnabled = True
-    s.setMRMLScene(slicer.mrmlScene)
-    s.connect("currentNodeChanged(bool)", on_click)
-    return s
-
-
-# TODO move to interfaceTools
-def build_text_item():
-    i = qt.QTableWidgetItem("")
-    i.setTextAlignment(qt.Qt.AlignCenter)
-    return i
-
-
 class Pair:
     def __init__(self, on_click):
-        self.fixed = build_volume_selector(on_click)
-        self.moving = build_volume_selector(on_click)
+        self.fixed = InterfaceTools.build_volume_selector(on_click)
+        self.moving = InterfaceTools.build_volume_selector(on_click)
         self.status = PairStatus.LOADING
 
     def disable(self):
@@ -70,7 +70,7 @@ class IntraSampleRegistration(ScriptedLoadableModule):
         self.parent.dependencies = []
         self.parent.contributors = ["Luke Helpard (Western University) and Evan Simpson (Western University)"]
         self.parent.helpText = "" + self.getDefaultModuleDocumentationLink()
-        self.parent.acknowledgementText = "This file was originally developed by Luke Helpard and Evan Simpson at The University of Western Ontario in the HML/SKA Auditory Biophysics Lab."
+        self.parent.acknowledgementText = "This file was originally developed by Evan Simpson at The University of Western Ontario in the HML/SKA Auditory Biophysics Lab."
 
 
 class IntraSampleRegistrationState:
@@ -218,7 +218,7 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
     def update_row(self, pair, i):
         self.table.setCellWidget(i, 0, pair.fixed)
         self.table.setCellWidget(i, 1, pair.moving)
-        if self.table.item(i, 2) is None: self.table.setItem(i, 2, build_text_item())
+        if self.table.item(i, 2) is None: self.table.setItem(i, 2, InterfaceTools.build_text_item())
         self.table.item(i, 2).setText(pair.StatusString())
 
     def update_selection(self):

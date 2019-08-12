@@ -21,6 +21,7 @@ include(${Slicer_USE_FILE})
 # Extension modules
 add_subdirectory(DeepLearningPreProcessModule)
 add_subdirectory(IntraSampleRegistration)
+add_subdirectory(SkullThicknessMapping)
 ## NEXT_MODULE
 
 #-----------------------------------------------------------------------------
