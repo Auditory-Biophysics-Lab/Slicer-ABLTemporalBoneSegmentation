@@ -766,10 +766,10 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
         dialog.setOptions(qt.QFileDialog.DontUseNativeDialog)
         dialog.setFileMode(qt.QFileDialog.AnyFile)
         dialog.setNameFilter(';;'.join([t['title'] for t in supportedSaveTypes]))
-        dialog.selectFile(name.replace(' ', ''))
+        dialog.selectFile(name)
         dialog.setAcceptMode(qt.QFileDialog.AcceptSave)
         if dialog.exec_() != qt.QDialog.Accepted: return
-        o = slicer.util.saveNode(node=node, filename=dialog.selectedFiles()[0].replace(' ', '') + next(t for t in supportedSaveTypes if t["title"] == dialog.selectedNameFilter())['value'])
+        o = slicer.util.saveNode(node=node, filename=dialog.selectedFiles()[0] + next(t for t in supportedSaveTypes if t["title"] == dialog.selectedNameFilter())['value'])
 
     # TODO remove
     # def run_flip(self, volume):
