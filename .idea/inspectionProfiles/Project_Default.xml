@@ -17,6 +17,9 @@
           <option value="E124" />
           <option value="W605" />
           <option value="E741" />
+          <option value="E702" />
+          <option value="E225" />
+          <option value="E228" />
         </list>
       </option>
     </inspection_tool>
@@ -48,6 +51,7 @@
           <option value="vtk.*" />
           <option value="Elastix" />
           <option value="DeepLearningPreProcessModule" />
+          <option value="numpy.*" />
         </list>
       </option>
     </inspection_tool>

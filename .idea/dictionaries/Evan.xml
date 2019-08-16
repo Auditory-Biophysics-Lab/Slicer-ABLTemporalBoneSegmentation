@@ -2,6 +2,7 @@
   <dictionary name="Evan">
     <words>
       <w>amanatides</w>
+      <w>arange</w>
       <w>blackman</w>
       <w>dicom</w>
       <w>elastix</w>
@@ -30,6 +31,7 @@
       <w>stylo</w>
       <w>stylomastoid</w>
       <w>thresholding</w>
+      <w>triangulator</w>
       <w>updation</w>
       <w>voxel</w>
       <w>welch</w>
