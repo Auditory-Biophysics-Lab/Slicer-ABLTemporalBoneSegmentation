@@ -8,6 +8,7 @@ import multiprocessing
 import time
 import qt
 import vtk
+from multiprocessing.dummy import Pool
 from slicer.ScriptedLoadableModule import *
 
 
@@ -55,11 +56,33 @@ class Facet:
         # return "\n  [Facet]" + " n:" + str(self.n) + "\n          v1:" + str(self.v1) + "\n          v2:" + str(self.v2) + "\n          v3:" + str(self.v3) + '\n'
         return "\n  [Facet]" + " n:" + str(self.normal) + "\n          c:" + str(self.center)
 
+
+class Polygon:
+    normal = None
+    center = None
+    points = None
+
+    def normal_inward(self): return self.normal
+    def normal_outward(self): return [-v for v in self.normal]
+
+    def __init__(self, center, normal, points):
+        self.center = center
+        self.normal = normal
+        self.points = points
+
+    def __repr__(self):
+        return str(self)
+
+    def __str__(self):
+        # return "\n  [Facet]" + " n:" + str(self.n) + "\n          v1:" + str(self.v1) + "\n          v2:" + str(self.v2) + "\n          v3:" + str(self.v3) + '\n'
+        return "\n  [Facet]" + " normal:" + str(self.normal) + "\n          center:" + str(self.center) + "\n          points:" + str(self.points)
+
+
 class Intersection:
     voxel = None
     value = None
 
-    def __init__(self, voxel, value):
+    def __init__(self, voxel=None, value=None):
         self.voxel = voxel
         self.value = value
 
@@ -88,6 +111,22 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         ScriptedLoadableModuleWidget.setup(self)
         self.layout.addLayout(self.build_interface())
         self.layout.addStretch()
+        slicer.app.layoutManager().setLayout(16)
+        # TODO set focal point
+        # viewNode = slicer.app.layoutManager().threeDWidget(0).threeDView()    #.mrmlViewNode()
+        # viewNode.resetFocalPoint()
+        # cameraNode = slicer.util.GetFirstNodeByType('vtkMRMLCameraNode*')
+        # for cameraNode in cameras.values():
+        #     if cameraNode.GetActiveTag() == viewNode.GetID(): break
+        # cameraNode.GetCamera().Azimuth(90)
+        # cameraNode.GetCamera().Elevation(20)
+
+        # testing TODO remove
+        slicer.mrmlScene.Clear()
+        path = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Sample/Images/1601L.img"
+        node = slicer.util.loadVolume(path, returnNode=True)[1]
+        self.volume.setCurrentNode(node)
+        # end testing area
 
     def build_interface(self):
         self.label = qt.QLabel("Status: ")
@@ -98,20 +137,22 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         button.connect('clicked(bool)', self.process)
         layout = qt.QVBoxLayout()
         layout.addWidget(self.volume)
-        layout.addWidget(self.outer)
-        layout.addWidget(self.rest)
+        # layout.addWidget(self.outer)
+        # layout.addWidget(self.rest)
         layout.addWidget(self.label)
         layout.addWidget(button)
         layout.setMargin(10)
         return layout
 
     def update_status(self, text):
+        print(text)
         self.label.text = "Status: " + text
         slicer.app.processEvents()
 
     def process(self):
         if self.volume.currentNode() is None: return
-        SkullThicknessMappingLogic.process(self.volume.currentNode(), self.rest.currentNode(), self.outer.currentNode(), self.update_status)
+        # SkullThicknessMappingLogic.process(self.volume.currentNode(), self.rest.currentNode(), self.outer.currentNode(), self.update_status)
+        SkullThicknessMappingLogic.process(self.volume.currentNode(), self.update_status)
 
 
 class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
@@ -120,85 +161,561 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         return slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + '/Resources/Sample/'
 
     @staticmethod
-    def process(image_node, rest_node, outer_node, status):
-        status("Initializing parameters, image, and models...")
-        parameters = {
-          'n_dura_voxel': 20,
-          'thresh_bone': 600,
-          'thresh_aircell': 150,
-          'thresh_dura': -300,
-          'n_outward_bone_check': 5
-        }
-        uniD = 10
+    def process_segmentation(image, status):
+        # Fix Volume Orientation
+        status("Rotating views to volume plane...")
+        manager = slicer.app.layoutManager()
+        for name in manager.sliceViewNames():
+            widget = manager.sliceWidget(name)
+            node = widget.mrmlSliceNode()
+            node.RotateToVolumePlane(image)
 
-        data = {
-          'image': image_node,    # SkullThicknessMappingLogic.sample_folder() + 'Images/' + sample_name + '.hdr',
-          'outer_stl': rest_node,    # SkullThicknessMappingLogic.read_stl(SkullThicknessMappingLogic.sample_folder() + 'STL/' + sample_name + '_outer.stl', status),
-          'rest_stl': outer_node     # SkullThicknessMappingLogic.read_stl(SkullThicknessMappingLogic.sample_folder() + 'STL/' + sample_name + '_rest.stl')
-        }
-        # get file names for image, outer, and rest of ear
-        # read stl files for outer and rest of ear
+        # Create segmentation
+        status("Creating segmentation...")
+        segmentationNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentationNode")
+        segmentationNode.CreateDefaultDisplayNodes()
+        segmentationNode.SetReferenceImageGeometryParameterFromVolumeNode(image)
+        segmentId = segmentationNode.GetSegmentation().AddEmptySegment("Bone")
+        segmentationNode.GetSegmentation().GetSegment(segmentId).SetColor([0.9, 0.8, 0.7])
 
-        SkullThicknessMappingLogic.calculate_distance(data, parameters, status)
-        # calculate thickness data VIA cal_dist.py
-        # plot output
-        # return output
+        # Create segment editor to get access to effects
+        status("Starting segmentation editor...")
+        segmentEditorWidget = slicer.qMRMLSegmentEditorWidget()
+        segmentEditorWidget.setMRMLScene(slicer.mrmlScene)
+        segmentEditorNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentEditorNode")
+        segmentEditorWidget.setMRMLSegmentEditorNode(segmentEditorNode)
+        segmentEditorWidget.setSegmentationNode(segmentationNode)
+        segmentEditorWidget.setMasterVolumeNode(image)
+
+        # Thresholding
+        status("Processing threshold segmentation...")
+        segmentEditorWidget.setActiveEffectByName("Threshold")
+        effect = segmentEditorWidget.activeEffect()
+        effect.setParameter("MinimumThreshold", "800")  # 1460 #1160 # 223
+        effect.setParameter("MaximumThreshold", "3071")
+        effect.self().onApply()
+
+        # Smoothing
+        status("Processing smoothing segmentation...")
+        segmentEditorWidget.setActiveEffectByName("Smoothing")
+        effect = segmentEditorWidget.activeEffect()
+        effect.setParameter("SmoothingMethod", "MORPHOLOGICAL_OPENING")
+        effect.setParameter("KernelSizeMm", 0.5)
+        effect.self().onApply()
+
+        # Islands
+        status("Processing island segmentation...")
+        segmentEditorWidget.setActiveEffectByName("Islands")
+        effect = segmentEditorWidget.activeEffect()
+        effect.setParameter("Operation", "KEEP_LARGEST_ISLAND")
+        effect.setParameter("MinimumSize", 1000)
+        effect.self().onApply()
+
+        # Crop
+        # status("Cropping segmentation...")
+        # segmentEditorWidget.setActiveEffectByName("Scissors")
+        # effect = segmentEditorWidget.activeEffect()
+        # effect.setParameter("MinimumThreshold", "223")
+        # effect.setParameter("MaximumThreshold", "3071")
+        # effect.self().onApply()
+
+        # Clean up
+        status("Cleaning up...")
+        segmentEditorWidget.setActiveEffectByName(None)
+        slicer.mrmlScene.RemoveNode(segmentEditorNode)
+
+        # Make segmentation results visible in 3D and set focal
+        status("Rendering...")
+        segmentationNode.CreateClosedSurfaceRepresentation()
+        manager.threeDWidget(0).threeDView().lookFromViewAxis(2)
+        c = manager.threeDWidget(0).threeDController()
+        for i in xrange(12): c.zoomIn()
+
+        # Make sure surface mesh cells are consistently oriented
+        status("Retrieving surface mesh...")
+        polyData = segmentationNode.GetClosedSurfaceRepresentation(segmentId)
+        # TODO move around
+        # normals = vtk.vtkPolyDataNormals()
+        # normals.AutoOrientNormalsOn()
+        # normals.ConsistencyOn()
+        # normals.SetInputData(surfaceMesh)
+        # normals.Update()
+        return polyData, segmentationNode
+
+
+
+        # Build inspection tree
+        status("Building intersection object tree...")
+        # obbTree = vtk.vtkCellLocator()
+        obbTree = vtk.vtkModifiedBSPTree()
+        # obbTree = vtk.vtkOBBTree()     # 6 minutes for 1/4 of rays
+        obbTree.SetDataSet(surfaceMesh)
+        obbTree.BuildLocator()
+
+        # TODO remove (testing ray cast)
+        # status("Generating ray-casting...")
+        # sourcePoint = [-100.0, 0.0, 0.0]
+        # targetPoint = [100.0, 0.0, 0.0]
+        # pointsOfIntersection = vtk.vtkPoints()
+        # cellsOfIntersection = vtk.vtkIdList()
+        # res = obbTree.IntersectWithLine(sourcePoint, targetPoint, pointsOfIntersection, cellsOfIntersection)
+        # pointIds = vtk.vtkIdList()
+        # surfaceMesh.GetCellPoints(cellsOfIntersection.GetId(0), pointIds)
+        # pointList = [surfaceMesh.GetPoint(pointIds.GetId(i)) for i in xrange(pointIds.GetNumberOfIds())]
+        # topLayerPoints = vtk.vtkPoints()
+        # topLayerPolys = vtk.vtkCellArray()
+        # cell = vtk.vtkTriangle()
+        # ids = cell.GetPointIds()
+        # for i, point in enumerate(pointList): ids.SetId(i, topLayerPoints.InsertNextPoint(point))
+        # topLayerPolys.InsertNextCell(cell)
+
+        # TODO remove (testing cell lookup)
+        # cells = surfaceMesh.GetPolys()
+        # points = surfaceMesh.GetPoints()
+        # poly = vtk.vtkTriangle()
+        # pointIds = vtk.vtkIdList()
+        # cells.GetCell(cellsOfIntersection.GetId(0), pointIds)
+        # # print(ids[0] + ' ' + ids[1] + ' ' + ids[2])
+        # for i in xrange(pointIds.GetNumberOfIds()): print(points.GetId(i))
+        # status("Finished attempt with resultant: " + str(pointsOfIntersection.GetNumberOfPoints()))
+
+
+        # Generate 'rainfall' ray trajectories
+        status("Generating rainfall ray trajectories...")
+        r, a, s = image.GetImageData().GetDimensions()
+        # rayEndTrajectories = [{'from': [-r, -a/2.0+(ai/2.0), -s/2.0+(si/2.0)], 'to': [r, -a/2.0+(ai/2.0), -s/2.0+(si/2.0)]} for ai in xrange(a*2) for si in xrange(s*2)]
+        rayEndTrajectories = [{'from': [-r, -a/2.0+ai, -s/2.0+si], 'to': [r, -a/2.0+ai, -s/2.0+si]} for ai in xrange(a) for si in xrange(s)]
+        # Cast rays
+        status("Casting " + str(len(rayEndTrajectories)) + " rays..."); startTime = time.time()
+        topLayerPoints, topLayerCells = vtk.vtkPoints(), vtk.vtkCellArray()
+        pointsOfIntersection, cellsOfIntersection, topCellPointIds = vtk.vtkPoints(), vtk.vtkIdList(), vtk.vtkIdList()
+        for trajectory in rayEndTrajectories:
+            res = obbTree.IntersectWithLine(trajectory['from'], trajectory['to'], 0, pointsOfIntersection, cellsOfIntersection)  # change potentially
+            if res == 0 or res != 0 and not -50 <= pointsOfIntersection.GetPoint(0)[0] < 0 : continue
+            # topLayerPoints.InsertNextPoint(pointsOfIntersection.GetPoint(0))
+            surfaceMesh.GetCellPoints(cellsOfIntersection.GetId(0), topCellPointIds)
+            newCell = vtk.vtkTriangle()
+            newCellPointIds = newCell.GetPointIds()
+            for i in xrange(topCellPointIds.GetNumberOfIds()):
+                cellPointId = topCellPointIds.GetId(i)
+                point = surfaceMesh.GetPoint(cellPointId)
+                topLayerPointId = topLayerPoints.InsertNextPoint(point)
+                newCellPointIds.SetId(i, topLayerPointId)
+            topLayerCells.InsertNextCell(newCell)
+
+
+        # TODO REMOVE TESTING
+        # for ids in xrange(0, topLayerPoints.GetNumberOfPoints(), 4):
+        #     cell = vtk.vtkPolygon()
+        #     cellIds = cell.GetPointIds()
+        #     for i in xrange(4): cellIds.InsertId(i, ids + i)
+        #     topLayerCells.InsertNextCell(cell)
+        #     if topLayerCells.GetNumberOfCells() > 10: break
+
+        # Render the top layer
+        status("Done rain-fall ray-cast in " + str("%.1f" % (time.time() - startTime)) + ", rendering top-layer " + str(topLayerCells.GetNumberOfCells()) + " polygons ...")
+        topLayerPolyData = vtk.vtkPolyData()
+        topLayerPolyData.SetPoints(topLayerPoints)
+        topLayerPolyData.SetPolys(topLayerCells)
+        topLayerPolyData.Modified()
+        segmentationNode.AddSegmentFromClosedSurfaceRepresentation(topLayerPolyData, "Rainfall cast", [0.34, 0.1, 0.95])
+        status("Top layer rendered...")
+        return
+
+
+
+
+
+
+
+
+        # converting back
+        status("Testing modification...")
+        polyData = normals.GetOutput()  # contains points, point data normals, cells, polygons, bounds
+        print('OLD----------\n' + str(polyData))
+        polygons = SkullThicknessMappingLogic.polydata_to_polygons(polyData, status)
+        # TODO modify
+        newPolyData = SkullThicknessMappingLogic.write_polygons_to_polydata(polygons, status)
+        # newPolyData = vtk.vtkPolyData()
+        # newPolyData.SetPoints(polyData.GetPoints())
+        # newPolyData.SetPolys(polyData.GetPolys())
+        # newPolyData.Modified()
+        print('NEW----------\n' + str(newPolyData))
+        status("Modification passed...")
+
+        # return
+
+        # polys = polyData.GetPolys()
+        # points = polyData.GetPoints()
+        # normals = polyData.GetPointData().GetNormals()
+        # print("---------------polyData:" + str(polyData))
+        # print("---------------possible centers: \n" + str(points))
+        # print("---------------possible normals: \n" + str(normals))
+
+        # testing
+        # new = vtk.vtkCellArray()
+        # polys = polyData.GetPolys()
+        # polys.InitTraversal()
+        # for i in range(1, 1000):
+        #     polyData.DeleteCell(i)
+        # polyData.RemoveDeletedCells()
+        #     npts = 3
+        #     pts = [0, 0, 0]
+        #     polys.GetNextCell(npts, pts)
+        #     new.insertNextCell(npts, pts)
+        # polyData.SetPolys(new)
+
+        # cellArray.InitTraversal()
+        # for i in range(0, polyData.GetNumberOfPolys()):
+        #     pts = [0, 0, 0, 0]
+        #     cellArray.GetNextCell(pts)
+        #     print(pts)
+        # for poly in polyData.GetPolys(): print(poly)
+
+        # Points = vtk.vtkPoints()
+        # Triangles = vtk.vtkCellArray()
+        # Triangle = vtk.vtkTriangle()
+        # id = Points.InsertNextPoint(1.0, 0.0, 0.0)
+        # id = Points.InsertNextPoint(0.0, 0.0, 0.0)
+        # id = Points.InsertNextPoint(0.0, 1.0, 0.0)
+        # id = Points.InsertNextPoint(2.0, 2.0, 0.0)
+        # id = Points.InsertNextPoint(0.0, 0.0, 0.0)
+        # id = Points.InsertNextPoint(0.0, 0.0, 2.0)
+        # Triangle.GetPointIds().SetId(0, 0)
+        # Triangle.GetPointIds().SetId(1, 1)
+        # Triangle.GetPointIds().SetId(2, 2)
+        # Triangles.InsertNextCell(Triangle)
+        # Triangle2 = vtk.vtkTriangle()
+        # Triangle2.GetPointIds().SetId(0, 3)
+        # Triangle2.GetPointIds().SetId(1, 4)
+        # Triangle2.GetPointIds().SetId(2, 5)
+        # Triangles.InsertNextCell(Triangle2)
+        # newPolyData = vtk.vtkPolyData()
+        # newPolyData.SetPoints(Points)
+        # newPolyData.SetPolys(Triangles)
+        # newPolyData.Modified()
+
+        # newPolyData = vtk.vtkPolyData()
+        # polys = polyData.GetPolys()
+        # points = polyData.GetPoints()
+        # # newPolyData.SetCells(cells)
+        # newPolyData.SetPoints(points)
+        # newPolyData.SetPolys(polys)
+        # newPolyData.Modified()
+
+        status("Rendering modification...")
+        segNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentationNode")
+        segId = segNode.AddSegmentFromClosedSurfaceRepresentation(newPolyData, "test", [0.34, 0.1, 0.95])
+        # seg = segNode.GetSegmentation().GetSegment(segId)
+        status("Rendering modification passed...")
+
+        # clean up
+        # TODO move to upper clean
+        slicer.mrmlScene.RemoveNode(segmentationNode)
+
+        # # generate labelmap
+        # status("Generating labelmap...")
+        # labelmap = slicer.modules.segmentations.logic().ExportSegmentsToLabelmapNode(segmentationNode)
+
+        # Write to STL file
+        # writer = vtk.vtkSTLWriter()
+        # writer.SetInputData(surfaceMesh)
+        # writer.SetFileName("d:/something.stl")
+        # writer.Update()
+
+    # @staticmethod
+    # def polydata_to_polygons(polydata, status):
+    #     status("Forming " + str(polydata.GetNumberOfPolys()) + " polygons..."); startTime = time.time()
+    #     # print(polydata.DeleteCell)
+    #     # print(polydata.RemoveDeletedCells)
+    #     polygons = []
+    #     points = polydata.GetPoints()
+    #     polys = polydata.GetPolys()
+    #     polys.InitTraversal()
+    #     ids = vtk.vtkIdList()
+    #     while polys.GetNextCell(ids) != 0:
+    #         polygon = Polygon(points=[points.GetPoint(ids.GetId(i)) for i in xrange(ids.GetNumberOfIds())], center=[0, 0, 0], normal=[0, 0, 0])
+    #         vtk.vtkTriangle.TriangleCenter(polygon.points[0], polygon.points[1], polygon.points[2], polygon.center)
+    #         vtk.vtkTriangle.ComputeNormal(polygon.points[0], polygon.points[1], polygon.points[2], polygon.normal)
+    #         # TODO add only if center is above x
+    #         polygons.append(polygon)
+    #     status("Finished " + str(len(polygons)) + " polygons in " + str("%.1f" % (time.time() - startTime)) + " seconds...")
+    #     return polygons
+    #
+    # @staticmethod
+    # def write_polygons_to_polydata(polygons, status):
+    #     status("Reconstructing polydata from " + str(len(polygons)) + " polygons..."); startTime = time.time()
+    #     points = vtk.vtkPoints()
+    #     cells = vtk.vtkCellArray()
+    #     for polygon in polygons:
+    #         cell = vtk.vtkTriangle()
+    #         ids = cell.GetPointIds()
+    #         for i, point in enumerate(polygon.points): ids.SetId(i, points.InsertNextPoint(point))
+    #         cells.InsertNextCell(cell)
+    #     polydata = vtk.vtkPolyData()
+    #     polydata.SetPoints(points)
+    #     polydata.SetPolys(cells)
+    #     polydata.Modified()
+    #     status("Finished polydata in " + str("%.1f" % (time.time() - startTime)) + " seconds...")
+    #     return polydata
 
     @staticmethod
-    # def amanatidesWooAlgorithm(center, normal, parameters):
-    def amanatidesWooAlgorithm(origin=None, direction=None, image=None, grid_3d_nx=None, grid_3d_ny=None, grid_3d_nz=None, grid_3d_min_bound=None, grid_3d_max_bound=None):
+    def rainfall_ray_cast_testing(polydata, dimensions, status):
+        # Build inspection tree
+        status("Building intersection object tree...")
+        obbTree = vtk.vtkModifiedBSPTree()
+        obbTree.SetDataSet(polydata)
+        obbTree.BuildLocator()
+
+        # Generate 'rainfall' ray trajectories
+        status("Generating rainfall ray trajectories...")
+        r, a, s = dimensions
+        rayEndTrajectories = [{'from': [-r, -a / 2.0 + ai, -s / 2.0 + si], 'to': [r, -a / 2.0 + ai, -s / 2.0 + si]} for ai in xrange(a) for si in xrange(s)]
+        # rayEndTrajectories = [{'from': [-r, -a/2.0+(ai/2.0), -s/2.0+(si/2.0)], 'to': [r, -a/2.0+(ai/2.0), -s/2.0+(si/2.0)]} for ai in xrange(a*2) for si in xrange(s*2)]
+
+        # Cast rays
+        status("Casting " + str(len(rayEndTrajectories)) + " rays..."); startTime = time.time()
+        topLayerPoints, topLayerCells = vtk.vtkPoints(), vtk.vtkCellArray()
+        pointsOfIntersection, cellsOfIntersection, topCellPointIds = vtk.vtkPoints(), vtk.vtkIdList(), vtk.vtkIdList()
+        for trajectory in rayEndTrajectories:
+            res = obbTree.IntersectWithLine(trajectory['from'], trajectory['to'], 0, pointsOfIntersection, cellsOfIntersection)  # change potentially
+            if res == 0 or res != 0 and not -50 <= pointsOfIntersection.GetPoint(0)[0] < 0: continue
+            polydata.GetCellPoints(cellsOfIntersection.GetId(0), topCellPointIds)
+            newCell = vtk.vtkTriangle()
+            newCellPointIds = newCell.GetPointIds()
+            for i in xrange(topCellPointIds.GetNumberOfIds()):
+                cellPointId = topCellPointIds.GetId(i)
+                point = polydata.GetPoint(cellPointId)
+                topLayerPointId = topLayerPoints.InsertNextPoint(point)
+                newCellPointIds.SetId(i, topLayerPointId)
+            topLayerCells.InsertNextCell(newCell)
+        status("Done rain-fall ray-cast in " + str("%.1f" % (time.time() - startTime)) + ", rendering top-layer " + str(topLayerCells.GetNumberOfCells()) + " polygons ...")
+
+        topLayerPolyData = vtk.vtkPolyData()
+        topLayerPolyData.SetPoints(topLayerPoints)
+        topLayerPolyData.SetPolys(topLayerCells)
+        topLayerPolyData.Modified()
+        return topLayerPolyData
+
+    @staticmethod
+    def rainfall_quad_cast(polydata, dimensions, status):
+        # set precision
+        r, a, s, precision = dimensions[0], dimensions[1], dimensions[2], 1.0
+        preciseA, preciseS = int(dimensions[1]/precision), int(dimensions[2]/precision)
+
+        # build search tree
+        status("Building intersection object tree...")
+        bspTree = vtk.vtkModifiedBSPTree()
+        bspTree.SetDataSet(polydata)
+        bspTree.BuildLocator()
+
+        # cast rays
+        status("Casting " + str(preciseA*preciseS) + " rays downward..."); startTime = time.time()
+        points, temporaryHitPoint = vtk.vtkPoints(), [0.0, 0.0, 0.0]
+        hitPointIdMatrix = [[None for ai in xrange(preciseA)] for si in xrange(preciseS)]
+        for si in xrange(preciseS):
+            for ai in xrange(preciseA):
+                res = bspTree.IntersectWithLine([-r, -a/2.0 + ai*precision, -s/2.0 + si*precision], [r, -a/2.0 + ai*precision, -s/2.0 + si*precision], 0, vtk.reference(0), temporaryHitPoint, [0.0, 0.0, 0.0], vtk.reference(0), vtk.reference(0))
+                if res != 0 and -50 <= temporaryHitPoint[0] < -10:
+                    temporaryHitPoint[0] -= 0.3  # raise to guarantee visibility
+                    hitPointIdMatrix[si][ai] = points.InsertNextPoint(temporaryHitPoint)
+
+        # form cells
+        cells = vtk.vtkCellArray()
+        for i in xrange(len(hitPointIdMatrix)-1):
+            for j in xrange(len(hitPointIdMatrix[i])-1):
+                ids = [hitPointIdMatrix[i][j], hitPointIdMatrix[i+1][j], hitPointIdMatrix[i+1][j+1], hitPointIdMatrix[i][j+1]]
+                if None not in ids: cells.InsertNextCell(4, ids)
+        status("Finished ray-casting in " + str("%.1f" % (time.time() - startTime)) + "s, found " + str(cells.GetNumberOfCells()) + " cells...")
+
+        # build polydata
+        topLayerPolyData = vtk.vtkPolyData()
+        topLayerPolyData.SetPoints(points)
+        topLayerPolyData.SetPolys(cells)
+        topLayerPolyData.Modified()
+        return topLayerPolyData
+
+    @staticmethod
+    def rainfall_ray_cast(polydata, dimensions, status):
+        status("Building intersection object tree...")
+        bspTree = vtk.vtkModifiedBSPTree()
+        bspTree.SetDataSet(polydata)
+        bspTree.BuildLocator()
+
+        precision = 1.0
+        status("Casting " + str(dimensions[1]*precision*dimensions[2]*precision) + " rays downward..."); startTime = time.time()
+        r, a, s = dimensions
+        topCellIds = vtk.vtkIdList()
+        for ai in xrange(int(a*precision)):
+            for si in xrange(int(s*precision)):
+                start, end = [-r, -a/2.0 + ai/precision, -s/2.0 + si/precision], [r, -a/2.0 + ai/precision, -s/2.0 + si/precision]
+                hitPoint, cellId = [0.0, 0.0, 0.0], vtk.reference(0)
+                res = bspTree.IntersectWithLine(start, end, 0, vtk.reference(0), hitPoint, [0.0, 0.0, 0.0], vtk.reference(0), cellId)
+                if res == 0 or res != 0 and not -50 <= hitPoint[0] < -10: continue
+                topCellIds.InsertUniqueId(cellId)
+        status("Finished ray-casting in " + str("%.1f" % (time.time() - startTime)) + "s, found " + str(topCellIds.GetNumberOfIds()) + " cells...")
+        return topCellIds
+
+    @staticmethod
+    def inflate_cellIds(cell_ids, polydata, status):
+        status("Building triangle filter...")
+        triangleFilter = vtk.vtkTriangleFilter()
+        triangleFilter.SetInputData(polydata)
+        triangleFilter.Update()
+        output = triangleFilter.GetOutput()
+
+        status("Filling in polygons...")
+        temporaryCellPointIds, temporaryIdList, temporaryNeighbourCellIdList = vtk.vtkIdList(), vtk.vtkIdList(), vtk.vtkIdList()
+        for cellId in xrange(cell_ids.GetNumberOfIds()):
+            polydata.GetCellPoints(cell_ids.GetId(cellId), temporaryCellPointIds)
+            temporaryNeighbourCellIdList.Reset()
+            for pointId in xrange(temporaryCellPointIds.GetNumberOfIds()):
+                temporaryIdList.Reset()
+                temporaryIdList.InsertNextId(temporaryCellPointIds.GetId(pointId))
+                output.GetCellNeighbors(cell_ids.GetId(cellId), temporaryIdList, temporaryNeighbourCellIdList)
+                for neighbourCellId in xrange(temporaryNeighbourCellIdList.GetNumberOfIds()):
+                    cell_ids.InsertUniqueId(temporaryNeighbourCellIdList.GetId(neighbourCellId))
+        return cell_ids
+
+    @staticmethod
+    def collect_and_build_polydata_from_cellIds_and_polydata(cell_ids, polydata, status):
+        status("Building subset polydata from " + str(cell_ids.GetNumberOfIds()) + " polygons...")
+        topLayerPoints, topLayerCells = vtk.vtkPoints(), vtk.vtkCellArray()
+        temporaryCellPointIds = vtk.vtkIdList()
+        for cellId in xrange(cell_ids.GetNumberOfIds()):
+            polydata.GetCellPoints(cell_ids.GetId(cellId), temporaryCellPointIds)
+            newCell = vtk.vtkTriangle()
+            for i in xrange(temporaryCellPointIds.GetNumberOfIds()):
+                point = polydata.GetPoint(temporaryCellPointIds.GetId(i))
+                newCell.GetPointIds().SetId(i, topLayerPoints.InsertNextPoint(point))
+            topLayerCells.InsertNextCell(newCell)
+
+        # build polydata
+        subsetPolyData = vtk.vtkPolyData()
+        subsetPolyData.SetPoints(topLayerPoints)
+        subsetPolyData.SetPolys(topLayerCells)
+        subsetPolyData.Modified()
+        return subsetPolyData
+
+    @staticmethod
+    def add_polydata_to_segmentation_node(polydata, segmentation_node, status):
+        status("Rendering top layer polydata with " + str(polydata.GetPolys().GetNumberOfCells()) +" polygons..."); startTime = time.time()
+        segmentation_node.AddSegmentFromClosedSurfaceRepresentation(polydata, "Rainfall cast", [0.34, 0.1, 0.95])
+        status("Top layer rendered in " + str("%.1f" % (time.time() - startTime)) + "s...")
+
+
+    # TODO remove
+    # @staticmethod
+    # def raw_polydata_to_facets(data, status):
+    #     status("Calculating centers and normals from polygons...")
+    #     startTime = time.time()
+    #     facets = []
+    #     rawPoints = data.GetPoints().GetData()
+    #     rawPolys = data.GetPolys().GetData()
+    #     connections = [int(rawPolys.GetTuple(i)) for i in xrange(rawPolys.GetNumberOfTuples())]
+    #     for connection in itertools.izip_longest(*[iter(connections)] * 4):
+    #         vertices = [[rawPoints.GetValue(i * 3), rawPoints.GetValue(i * 3 + 1), rawPoints.GetValue(i * 3 + 2)] for i in connection[1:4]]
+    #         facet = Facet(c=[0, 0, 0], n=[0, 0, 0])
+    #         vtk.vtkTriangle.TriangleCenter(vertices[0], vertices[1], vertices[2], facet.center)
+    #         vtk.vtkTriangle.ComputeNormal(vertices[0], vertices[1], vertices[2], facet.normal)
+    #         facets.append(facet)
+    #     status("Finished " + str(len(facets)) + " polygons in " + str("%.1f" % (time.time() - startTime)) + " seconds...")
+    #     return facets
+
+    @staticmethod
+    def process(image, status):
+        polydata, segmentationNode = SkullThicknessMappingLogic.process_segmentation(image, status)
+        # topLayerCellIds = SkullThicknessMappingLogic.rainfall_ray_cast(polydata, image.GetImageData().GetDimensions(), status)
+        # topLayerCellIds = SkullThicknessMappingLogic.inflate_cellIds(topLayerCellIds, polydata, status)
+        # topLayerPolyData = SkullThicknessMappingLogic.collect_and_build_polydata_from_cellIds_and_polydata(topLayerCellIds, polydata, status)
+        topLayerPolyData = SkullThicknessMappingLogic.rainfall_quad_cast(polydata, image.GetImageData().GetDimensions(), status)
+        SkullThicknessMappingLogic.add_polydata_to_segmentation_node(topLayerPolyData, segmentationNode, status)
+
+        # highlight top section
+        # iterate through top section with normalized ray cast
+        # record distance to first air pocket with threshold
+        # record distance of skull
+        # visualize
+        # cast to labelmap
+        # populate colours
+
+    # @staticmethod
+    # def process(image_node, rest_node, outer_node, status):
+    #     status("Initializing parameters, image, and models...")
+    #     parameters = {
+    #       'n_dura_voxel': 20,
+    #       'thresh_bone': 600,
+    #       'thresh_aircell': 150,
+    #       'thresh_dura': -300,
+    #       'n_outward_bone_check': 5
+    #     }
+    #     uniD = 10
+    #
+    #     data = {
+    #       'image': image_node,    # SkullThicknessMappingLogic.sample_folder() + 'Images/' + sample_name + '.hdr',
+    #       'outer_stl': rest_node,    # SkullThicknessMappingLogic.read_stl(SkullThicknessMappingLogic.sample_folder() + 'STL/' + sample_name + '_outer.stl', status),
+    #       'rest_stl': outer_node     # SkullThicknessMappingLogic.read_stl(SkullThicknessMappingLogic.sample_folder() + 'STL/' + sample_name + '_rest.stl')
+    #     }
+    #     # get file names for image, outer, and rest of ear
+    #     # read stl files for outer and rest of ear
+    #
+    #     SkullThicknessMappingLogic.calculate_distance(data, parameters, status)
+    #     # calculate thickness data VIA cal_dist.py
+    #     # plot output
+    #     # return output
+
+    @staticmethod
+    def amanatidesWooAlgorithm(origin, normal, parameters):
         result = Intersection()
-        flag, tMin = SkullThicknessMappingLogic.rayBoxIntersection(origin, direction, grid_3d_min_bound, grid_3d_max_bound, nargout=2)
-        if flag == 0:
-            print('[!] The ray does not intersect the grid')
-            return None, None
+        flag, tMin = SkullThicknessMappingLogic.rayBoxIntersection(origin, normal, parameters['minimum'], parameters['maximum'])
+        if flag == 0: print('[!] The ray does not intersect the grid'); return None, None
 
         if tMin < 0: tMin = 0
-        start = origin + numpy.floor(tMin, direction)
-        boxSize = grid_3d_max_bound - grid_3d_min_bound
-        x = numpy.floor(numpy.dot(((start(1) - grid_3d_min_bound(1)) / boxSize(1)), grid_3d_nx)) + 1
-        y = numpy.floor(numpy.dot(((start(2) - grid_3d_min_bound(2)) / boxSize(2)), grid_3d_ny)) + 1
-        z = numpy.floor(numpy.dot(((start(3) - grid_3d_min_bound(3)) / boxSize(3)), grid_3d_nz)) + 1
-        if x == (grid_3d_nx + 1): x = x - 1
-        if y == (grid_3d_ny + 1): y = y - 1
-        if z == (grid_3d_nz + 1): z = z - 1
-        if direction(1) >= 0:
-            tVoxelX = x / grid_3d_nx
+        start = origin + numpy.floor(tMin, normal)
+        boxSize = parameters['maximum'] - parameters['minimum']
+        x = numpy.floor(numpy.dot(((start[0] - parameters['minimum'][0]) / boxSize[0]), parameters['dimensions'][0])) + 1
+        y = numpy.floor(numpy.dot(((start[1] - parameters['minimum'][1]) / boxSize[1]), parameters['dimensions'][1])) + 1
+        z = numpy.floor(numpy.dot(((start[2] - parameters['minimum'][2]) / boxSize[2]), parameters['dimensions'][2])) + 1
+        if x == (parameters['dimensions'][0] + 1): x = x - 1
+        if y == (parameters['dimensions'][1] + 1): y = y - 1
+        if z == (parameters['dimensions'][2] + 1): z = z - 1
+        if normal[0] >= 0:
+            tVoxelX = x / parameters['dimensions'][0]
             stepX = 1
         else:
-            tVoxelX = (x - 1) / grid_3d_nx
+            tVoxelX = (x - 1) / parameters['dimensions'][0]
             stepX = - 1
-        if direction(2) >= 0:
-            tVoxelY = y / grid_3d_ny
+        if normal[1] >= 0:
+            tVoxelY = y / parameters['dimensions'][1]
             stepY = 1
         else:
-            tVoxelY = (y - 1) / grid_3d_ny
+            tVoxelY = (y - 1) / parameters['dimensions'][1]
             stepY = - 1
-        if direction(3) >= 0:
-            tVoxelZ = z / grid_3d_nz
+        if normal[2] >= 0:
+            tVoxelZ = z / parameters['dimensions'][2]
             stepZ = 1
         else:
-            tVoxelZ = (z - 1) / grid_3d_nz
+            tVoxelZ = (z - 1) / parameters['dimensions'][2]
             stepZ = - 1
 
-        voxelMaxX = grid_3d_min_bound(1) + numpy.dot(tVoxelX, boxSize(1))
-        voxelMaxY = grid_3d_min_bound(2) + numpy.dot(tVoxelY, boxSize(2))
-        voxelMaxZ = grid_3d_min_bound(3) + numpy.dot(tVoxelZ, boxSize(3))
-        tMaxX = tMin + (voxelMaxX - start(1)) / direction(1)
-        tMaxY = tMin + (voxelMaxY - start(2)) / direction(2)
-        tMaxZ = tMin + (voxelMaxZ - start(3)) / direction(3)
-        voxelSizeX = boxSize(1) / grid_3d_nx
-        voxelSizeY = boxSize(2) / grid_3d_ny
-        voxelSizeZ = boxSize(3) / grid_3d_nz
-        tDeltaX = voxelSizeX / abs(direction(1))
-        tDeltaY = voxelSizeY / abs(direction(2))
-        tDeltaZ = voxelSizeZ / abs(direction(3))
+        voxelMaxX = parameters['minimum'][0] + numpy.dot(tVoxelX, boxSize[0])
+        voxelMaxY = parameters['minimum'][1] + numpy.dot(tVoxelY, boxSize[1])
+        voxelMaxZ = parameters['minimum'][2] + numpy.dot(tVoxelZ, boxSize[2])
+        tMaxX = tMin + (voxelMaxX - start[0]) / normal[0]
+        tMaxY = tMin + (voxelMaxY - start[1]) / normal[1]
+        tMaxZ = tMin + (voxelMaxZ - start[2]) / normal[2]
+        voxelSizeX = boxSize[0] / parameters['dimensions'][0]
+        voxelSizeY = boxSize[1] / parameters['dimensions'][1]
+        voxelSizeZ = boxSize[2] / parameters['dimensions'][2]
+        tDeltaX = voxelSizeX / abs(normal[0])
+        tDeltaY = voxelSizeY / abs(normal[1])
+        tDeltaZ = voxelSizeZ / abs(normal[2])
         i, t_flag = 1, 1
-        while (x <= grid_3d_nx) and (x >= 1) and (y <= grid_3d_ny) and (y >= 1) and (z <= grid_3d_nz) and (z >= 1) and t_flag:
+        while (x <= parameters['dimensions'][0]) and (x >= 1) and (y <= parameters['dimensions'][1]) and (y >= 1) and (z <= parameters['dimensions'][2]) and (z >= 1) and t_flag:
             result.voxel = [x, y, z]
-            result.value = image(x, y, z) # ???????? image(y, x, z)
-            # t1 = [(x - 1) / grid_3d_nx, (y - 1) / grid_3d_ny, (z - 1) / grid_3d_nz]
-            # t2 = [x / grid_3d_nx, y / grid_3d_ny, z / grid_3d_nz]
+            result.value = parameters['dimensions'] # ???????? image(y, x, z)
+            # t1 = [(x - 1) / parameters['dimensions],[0 (y - 1) / parameters['dimensions'][1], (z - 1) / parameters['dimensions'][2]]
+            # t2 = [x / parameters['dimensions],[0 y / parameters['dimensions'][1], z / parameters['dimensions'][2]]
             # vMin = (grid_3d_min_bound + numpy.multiply(t1, boxSize))
             # vMax = (grid_3d_min_bound + numpy.multiply(t2, boxSize))
             i = i + 1
@@ -228,23 +745,23 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         #    direction.
         #    box = (v_min,v_max)
         # Output:
-        #    flag: (0) Reject, (1) Intersect.
+        #    flag: (0) Reject, [0] Intersect.
         #    tMin: distance from the ray origin.
         # Author:
         #    Jesus Mena
 
-        if direction(1) >= 0:
-            tMin = (v_min(1) - origin(1)) / direction(1)
-            tMax = (v_max(1) - origin(1)) / direction(1)
+        if direction[0] >= 0:
+            tMin = (v_min[0] - origin[0]) / direction[0]
+            tMax = (v_max[0] - origin[0]) / direction[0]
         else:
-            tMin = (v_max(1) - origin(1)) / direction(1)
-            tMax = (v_min(1) - origin(1)) / direction(1)
-        if direction(2) >= 0:
-            tyMin = (v_min(2) - origin(2)) / direction(2)
-            tyMax = (v_max(2) - origin(2)) / direction(2)
+            tMin = (v_max[0] - origin[0]) / direction[0]
+            tMax = (v_min[0] - origin[0]) / direction[0]
+        if direction[1] >= 0:
+            tyMin = (v_min[1] - origin[1]) / direction[1]
+            tyMax = (v_max[1] - origin[1]) / direction[1]
         else:
-            tyMin = (v_max(2) - origin(2)) / direction(2)
-            tyMax = (v_min(2) - origin(2)) / direction(2)
+            tyMin = (v_max[1] - origin[1]) / direction[1]
+            tyMax = (v_min[1] - origin[1]) / direction[1]
         if (tMin > tyMax) or (tyMin > tMax):
             flag = 0
             tMin = - 1
@@ -252,12 +769,12 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
 
         if tyMin > tMin: tMin = numpy.copy(tyMin)
         if tyMax < tMax: tMax = numpy.copy(tyMax)
-        if direction(3) >= 0:
-            tzmin = (v_min(3) - origin(3)) / direction(3)
-            tzmax = (v_max(3) - origin(3)) / direction(3)
+        if direction[2] >= 0:
+            tzmin = (v_min[2] - origin[2]) / direction[2]
+            tzmax = (v_max[2] - origin[2]) / direction[2]
         else:
-            tzmin = (v_max(3) - origin(3)) / direction(3)
-            tzmax = (v_min(3) - origin(3)) / direction(3)
+            tzmin = (v_max[2] - origin[2]) / direction[2]
+            tzmax = (v_min[2] - origin[2]) / direction[2]
 
         if (tMin > tzmax) or (tzmin > tMax):
             flag = 0
@@ -294,7 +811,7 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         facets = []
         outerPoints = data['outer_stl'].GetPolyData().GetPoints().GetData()
         outerPolyData = data['outer_stl'].GetPolyData().GetPolys().GetData()
-        connections = [int(outerPolyData.GetTuple1(i)) for i in xrange(outerPolyData.GetNumberOfTuples())]
+        connections = [int(outerPolyData.GetTuple(i)) for i in xrange(outerPolyData.GetNumberOfTuples())]
         for connection in itertools.izip_longest(*[iter(connections)] * 4):
             vertices = [[outerPoints.GetValue(i*3), outerPoints.GetValue(i*3+1), outerPoints.GetValue(i*3+2)] for i in connection[1:4]]
             facet = Facet(c=[0, 0, 0], n=[0, 0, 0])
@@ -309,12 +826,13 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
             parameters = {'dimensions': dimensions, 'minimum' : [0, 0, 0], 'maximum' : [(dimensions[i]-1)*s for i, s in enumerate(spacing)]}
             outwardsIntersection = SkullThicknessMappingLogic.amanatidesWooAlgorithm(facet.center, facet.normal_outward(), parameters)
             # TODO in each direction get the voxel values in n_outward_bone_check length, then get max, then check if thats in threshold
+            # if max(g_outside(arange(1, n_outward_bone_check))) >= thresh_bone:
             # if max(outwardsIntersection.value(arange(1, parameters['n_outward_bone_check']))) >= parameters['thresh_bone']:
             #   new_origin_voxel = find(g_outside >= thresh_bone, 1, 'last')
             #   origin = concat([mesh_x(1, iv_outside(new_origin_voxel, 1), 1), mesh_y(iv_outside(new_origin_voxel, 2), 1, 1), mesh_z(1, 1, iv_outside(new_origin_voxel, 3))])
             # TODO implement intersection class
             inwardsIntersection = SkullThicknessMappingLogic.amanatidesWooAlgorithm(facet.center, facet.normal_inward(), parameters)
-
+        status("Finished calculating thickness in " + str("%.1f"%(time.time()-startTime)) + " seconds...")
 
 
     #     c = data['outer_stl'].centers

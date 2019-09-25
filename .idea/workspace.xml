@@ -5,9 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f08bb156-2c28-4f65-9fa3-faa143f298d2" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/dictionaries/Evan.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dictionaries/Evan.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/SkullThicknessMapping/SkullThicknessMapping.py" beforeDir="false" afterPath="$PROJECT_DIR$/SkullThicknessMapping/SkullThicknessMapping.py" afterDir="false" />
     </list>
@@ -49,7 +47,7 @@
     <property name="nodejs_interpreter_path.stuck_in_default_project" value="undefined stuck path" />
     <property name="nodejs_npm_path_reset_for_default_project" value="true" />
     <property name="run.code.analysis.last.selected.profile" value="pProject Default" />
-    <property name="settings.editor.selected.configurable" value="preferences.sourceCode.Python" />
+    <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
   </component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
@@ -134,7 +132,15 @@
       <workItem from="1563820532694" duration="26878000" />
       <workItem from="1563990867805" duration="45301000" />
       <workItem from="1564510496648" duration="101486000" />
-      <workItem from="1565795371104" duration="37505000" />
+      <workItem from="1565795371104" duration="38108000" />
+      <workItem from="1566241581910" duration="2203000" />
+      <workItem from="1566419449236" duration="932000" />
+      <workItem from="1566832729053" duration="107000" />
+      <workItem from="1566832941894" duration="60259000" />
+      <workItem from="1568042213428" duration="25351000" />
+      <workItem from="1568212889454" duration="141000" />
+      <workItem from="1568213123154" duration="14036000" />
+      <workItem from="1568654698347" duration="30143000" />
     </task>
     <servers />
   </component>
