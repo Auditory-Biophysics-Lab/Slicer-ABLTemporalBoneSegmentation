@@ -5,7 +5,6 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f08bb156-2c28-4f65-9fa3-faa143f298d2" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/dictionaries/Evan.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dictionaries/Evan.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/SkullThicknessMapping/SkullThicknessMapping.py" beforeDir="false" afterPath="$PROJECT_DIR$/SkullThicknessMapping/SkullThicknessMapping.py" afterDir="false" />
     </list>
@@ -140,7 +139,7 @@
       <workItem from="1568042213428" duration="25351000" />
       <workItem from="1568212889454" duration="141000" />
       <workItem from="1568213123154" duration="14036000" />
-      <workItem from="1568654698347" duration="30143000" />
+      <workItem from="1568654698347" duration="39502000" />
     </task>
     <servers />
   </component>
