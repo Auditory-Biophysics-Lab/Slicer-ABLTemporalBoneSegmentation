@@ -206,7 +206,7 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
             # if i == 100: break
             point = top_layer_poly_data.GetPoint(i)
             res = bspTree.IntersectWithLine([-100, point[1], point[2]], [100, point[1], point[2]], 0, pointsOfIntersection, cellsOfIntersection)
-            if pointsOfIntersection.GetNumberOfPoints() < 2 or pointsOfIntersection.GetNumberOfPoints() > 8: continue
+            if pointsOfIntersection.GetNumberOfPoints() < 2: continue
             # TODO get point
             # TODO find 4 connected cells
             # TODO average normals
