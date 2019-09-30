@@ -99,10 +99,12 @@ class SkullThicknessMapping(ScriptedLoadableModule):
 
 
 class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
+    # TODO rename things
     label = None
     volume = None
-    outer = None
-    rest = None
+    polyData = None
+    topLayerPolyData = None
+    modelNode = None
 
     def __init__(self, parent=None):
         ScriptedLoadableModuleWidget.__init__(self, parent)
@@ -112,25 +114,15 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         self.layout.addLayout(self.build_interface())
         self.layout.addStretch()
         slicer.app.layoutManager().setLayout(16)
-        # testing TODO REMOVE
-        slicer.mrmlScene.Clear()
-        path = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Sample/Images/1601L.img"
-        node = slicer.util.loadVolume(path, returnNode=True)[1]
-        self.volume.setCurrentNode(node)
-        # end testing area
         SkullThicknessMappingLogic.reset_view()
 
     def build_interface(self):
         self.label = qt.QLabel("Status: ")
         self.volume = InterfaceTools.build_volume_selector()
-        self.outer = InterfaceTools.build_model_selector()
-        self.rest = InterfaceTools.build_model_selector()
         button = qt.QPushButton("Go")
         button.connect('clicked(bool)', self.process)
         layout = qt.QVBoxLayout()
         layout.addWidget(self.volume)
-        # layout.addWidget(self.outer)
-        # layout.addWidget(self.rest)
         layout.addWidget(self.label)
         layout.addWidget(button)
         layout.setMargin(10)
@@ -142,9 +134,35 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         slicer.app.processEvents()
 
     def process(self):
+        # testing TODO REMOVE
+        slicer.mrmlScene.Clear()
+        path = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Sample/Images/1601L.img"
+        node = slicer.util.loadVolume(path, returnNode=True)[1]
+        self.volume.setCurrentNode(node)
+        # end testing area
+
         if self.volume.currentNode() is None: return
         # SkullThicknessMappingLogic.process(self.volume.currentNode(), self.rest.currentNode(), self.outer.currentNode(), self.update_status)
-        SkullThicknessMappingLogic.process(self.volume.currentNode(), self.update_status)
+        # SkullThicknessMappingLogic.process(self.volume.currentNode(), self.update_status)
+        image = self.volume.currentNode()
+        SkullThicknessMappingLogic.reset_view()
+        self.polyData, segmentationNode = SkullThicknessMappingLogic.process_segmentation(image, self.update_status)
+        # topLayerCellIds = SkullThicknessMappingLogic.rainfall_ray_cast(polydata, image.GetImageData().GetDimensions(), status)
+        # topLayerCellIds = SkullThicknessMappingLogic.inflate_cellIds(topLayerCellIds, polydata, status)
+        # topLayerPolyData = SkullThicknessMappingLogic.collect_and_build_polydata_from_cellIds_and_polydata(topLayerCellIds, polydata, status)
+        self.topLayerPolyData = SkullThicknessMappingLogic.rainfall_quad_cast(self.polyData, image.GetImageData().GetDimensions(), self.update_status)
+        self.modelNode = SkullThicknessMappingLogic.build_model(self.topLayerPolyData, self.update_status)
+        SkullThicknessMappingLogic.ray_cast_color_thickness(self.polyData, self.topLayerPolyData, self.modelNode, self.update_status)
+        # SkullThicknessMappingLogic.multi_colour_test(topLayerPolyData)
+        # SkullThicknessMappingLogic.add_polydata_to_segmentation_node(topLayerPolyData, segmentationNode, status)
+
+        # highlight top section
+        # iterate through top section with normalized ray cast
+        # record distance to first air pocket with threshold
+        # record distance of skull
+        # visualize
+        # cast to labelmap
+        # populate colours
 
 
 class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
@@ -173,10 +191,10 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         return modelNode
 
     @staticmethod
-    def ray_cast_color_thickness(polydata, model_node, status):
+    def ray_cast_color_thickness(poly_data, top_layer_poly_data, model_node, status):
         status("Building intersection object tree...")
         bspTree = vtk.vtkModifiedBSPTree()
-        bspTree.SetDataSet(polydata)
+        bspTree.SetDataSet(poly_data)
         bspTree.BuildLocator()
 
         status("Calculating thickness and rendering top layer color...")
@@ -184,23 +202,32 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         colours.SetName('Thickness')
         # colours.SetNumberOfComponents(3)
         pointsOfIntersection, cellsOfIntersection = vtk.vtkPoints(), vtk.vtkIdList()
-        for i in xrange(polydata.GetNumberOfPoints()):
-            point = polydata.GetPoint(i)
+        for i in xrange(top_layer_poly_data.GetNumberOfPoints()):
+            # if i == 100: break
+            point = top_layer_poly_data.GetPoint(i)
             res = bspTree.IntersectWithLine([-100, point[1], point[2]], [100, point[1], point[2]], 0, pointsOfIntersection, cellsOfIntersection)
-            if res == 0 or pointsOfIntersection.GetNumberOfPoints() < 2: continue
+            if pointsOfIntersection.GetNumberOfPoints() < 2 or pointsOfIntersection.GetNumberOfPoints() > 8: continue
+            # TODO get point
+            # TODO find 4 connected cells
+            # TODO average normals
+            # TODO cast normal
             p1, p2 = pointsOfIntersection.GetPoint(0), pointsOfIntersection.GetPoint(pointsOfIntersection.GetNumberOfPoints()-1)
-            # TODO add normal calc and find distance
-            thickness = numpy.abs(p1[0] - p2[1])
-            print(thickness)
-            # c = numpy.random.randint(0, 255)
+            # p1, p2 = pointsOfIntersection.GetPoint(0), pointsOfIntersection.GetPoint(1)
+            # slicer.modules.markups.logic().AddFiducial(p1[0], p1[1], p1[2])
+            # slicer.modules.markups.logic().AddFiducial(p2[0], p2[1], p2[2])
+            thickness = numpy.linalg.norm(numpy.array((p1[0], p1[1], p1[2])) - numpy.array((p2[0], p2[1], p2[2])))
+            # thickness = numpy.abs(p1[0] - p2[1])
+            # thickness = numpy.random.randint(0, 255)
+            thickness = thickness*20
+            print('Point ' + str(i) + '(' + pointsOfIntersection.GetNumberOfPoints() + ' hits) thickness: ' + str(thickness))
             colours.InsertNextTuple1(thickness)
 
-        polydata.GetPointData().SetScalars(colours)
-        polydata.Modified()
+        top_layer_poly_data.GetPointData().SetScalars(colours)
+        top_layer_poly_data.Modified()
 
         displayNode = model_node.GetDisplayNode()
         displayNode.SetActiveScalarName('Thickness')
-        displayNode.SetAndObserveColorNodeID('vtkMRMLColorTableNodeFullRainbow')
+        displayNode.SetAndObserveColorNodeID('vtkMRMLColorTableNodeFileHotToColdRainbow.txt')
         displayNode.ScalarVisibilityOn()
         # displayNode.AutoScalarRangeOn()
         displayNode.SetScalarRangeFlag(slicer.vtkMRMLDisplayNode.UseColorNodeScalarRange)
@@ -585,8 +612,8 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         # cast rays
         status("Casting " + str(preciseA*preciseS) + " rays downward..."); startTime = time.time()
         points, temporaryHitPoint = vtk.vtkPoints(), [0.0, 0.0, 0.0]
-        hitPointIdMatrix = [[None for ai in xrange(preciseA)] for si in xrange(preciseS)]
-        for si in xrange(preciseS):
+        hitPointIdMatrix = [[None for ai in xrange(preciseA)] for si in reversed(xrange(preciseS))]
+        for si in reversed(xrange(preciseS)):
             for ai in xrange(preciseA):
                 res = bspTree.IntersectWithLine([-r, -a/2.0 + ai*precision, -s/2.0 + si*precision], [r, -a/2.0 + ai*precision, -s/2.0 + si*precision], 0, vtk.reference(0), temporaryHitPoint, [0.0, 0.0, 0.0], vtk.reference(0), vtk.reference(0))
                 if res != 0 and -50 <= temporaryHitPoint[0] < -10:
@@ -694,27 +721,6 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
     #         facets.append(facet)
     #     status("Finished " + str(len(facets)) + " polygons in " + str("%.1f" % (time.time() - startTime)) + " seconds...")
     #     return facets
-
-    @staticmethod
-    def process(image, status):
-        SkullThicknessMappingLogic.reset_view()
-        polydata, segmentationNode = SkullThicknessMappingLogic.process_segmentation(image, status)
-        # topLayerCellIds = SkullThicknessMappingLogic.rainfall_ray_cast(polydata, image.GetImageData().GetDimensions(), status)
-        # topLayerCellIds = SkullThicknessMappingLogic.inflate_cellIds(topLayerCellIds, polydata, status)
-        # topLayerPolyData = SkullThicknessMappingLogic.collect_and_build_polydata_from_cellIds_and_polydata(topLayerCellIds, polydata, status)
-        topLayerPolyData = SkullThicknessMappingLogic.rainfall_quad_cast(polydata, image.GetImageData().GetDimensions(), status)
-        modelNode = SkullThicknessMappingLogic.build_model(topLayerPolyData, status)
-        SkullThicknessMappingLogic.ray_cast_color_thickness(topLayerPolyData, modelNode, status)
-        # SkullThicknessMappingLogic.multi_colour_test(topLayerPolyData)
-        # SkullThicknessMappingLogic.add_polydata_to_segmentation_node(topLayerPolyData, segmentationNode, status)
-
-        # highlight top section
-        # iterate through top section with normalized ray cast
-        # record distance to first air pocket with threshold
-        # record distance of skull
-        # visualize
-        # cast to labelmap
-        # populate colours
 
     # @staticmethod
     # def process(image_node, rest_node, outer_node, status):
