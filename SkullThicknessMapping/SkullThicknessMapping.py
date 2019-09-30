@@ -219,7 +219,7 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
             # thickness = numpy.abs(p1[0] - p2[1])
             # thickness = numpy.random.randint(0, 255)
             thickness = thickness*20
-            print('Point ' + str(i) + '(' + pointsOfIntersection.GetNumberOfPoints() + ' hits) thickness: ' + str(thickness))
+            print('Point ' + str(i) + '(' + str(pointsOfIntersection.GetNumberOfPoints()) + ' hits) thickness: ' + str(thickness))
             colours.InsertNextTuple1(thickness)
 
         top_layer_poly_data.GetPointData().SetScalars(colours)
