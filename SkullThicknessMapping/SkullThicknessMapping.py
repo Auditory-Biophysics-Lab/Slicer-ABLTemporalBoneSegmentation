@@ -38,53 +38,54 @@ class InterfaceTools:
         return s
 
 
-class Facet:
-    normal = None
-    center = None
-
-    def normal_inward(self): return self.normal
-    def normal_outward(self): return [-v for v in self.normal]
-
-    def __init__(self, c, n):
-        self.normal = n
-        self.center = c
-
-    def __repr__(self):
-        return str(self)
-
-    def __str__(self):
-        # return "\n  [Facet]" + " n:" + str(self.n) + "\n          v1:" + str(self.v1) + "\n          v2:" + str(self.v2) + "\n          v3:" + str(self.v3) + '\n'
-        return "\n  [Facet]" + " n:" + str(self.normal) + "\n          c:" + str(self.center)
-
-
-class Polygon:
-    normal = None
-    center = None
-    points = None
-
-    def normal_inward(self): return self.normal
-    def normal_outward(self): return [-v for v in self.normal]
-
-    def __init__(self, center, normal, points):
-        self.center = center
-        self.normal = normal
-        self.points = points
-
-    def __repr__(self):
-        return str(self)
-
-    def __str__(self):
-        # return "\n  [Facet]" + " n:" + str(self.n) + "\n          v1:" + str(self.v1) + "\n          v2:" + str(self.v2) + "\n          v3:" + str(self.v3) + '\n'
-        return "\n  [Facet]" + " normal:" + str(self.normal) + "\n          center:" + str(self.center) + "\n          points:" + str(self.points)
-
-
-class Intersection:
-    voxel = None
-    value = None
-
-    def __init__(self, voxel=None, value=None):
-        self.voxel = voxel
-        self.value = value
+# class Facet:
+#     normal = None
+#     center = None
+#
+#     def normal_inward(self): return self.normal
+#     def normal_outward(self): return [-v for v in self.normal]
+#
+#     def __init__(self, c, n):
+#         self.normal = n
+#         self.center = c
+#
+#     def __repr__(self):
+#         return str(self)
+#
+#     def __str__(self):
+#         # return "\n  [Facet]" + " n:" + str(self.n) + "\n          v1:" + str(self.v1) + "\n          v2:" + str(self.v2) + "\n          v3:" + str(self.v3) + '\n'
+#         return "\n  [Facet]" + " n:" + str(self.normal) + "\n          c:" + str(self.center)
+#
+#
+# class Polygon:
+#     normal = None
+#     center = None
+#     points = None
+#
+#     def normal_inward(self): return self.normal
+#     def normal_outward(self): return [-v for v in self.normal]
+#
+#     def __init__(self, center, normal, points):
+#         self.center = center
+#         self.normal = normal
+#         self.points = points
+#
+#     def __repr__(self):
+#         return str(self)
+#
+#     def __str__(self):
+#         # return "\n  [Facet]" + " n:" + str(self.n) + "\n          v1:" + str(self.v1) + "\n          v2:" + str(self.v2) + "\n          v3:" + str(self.v3) + '\n'
+#         return "\n  [Facet]" + " normal:" + str(self.normal) + "\n          center:" + str(self.center) + "\n          points:" + str(self.points)
+#
+#
+# class Intersection:
+#     voxel = None
+#     value = None
+#
+#     def __init__(self, voxel=None, value=None):
+#         self.voxel = voxel
+#         self.value = value
+#
 
 
 class SkullThicknessMapping(ScriptedLoadableModule):
@@ -219,7 +220,7 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
             # thickness = numpy.abs(p1[0] - p2[1])
             # thickness = numpy.random.randint(0, 255)
             thickness = thickness*20
-            print('Point ' + str(i) + '(' + str(pointsOfIntersection.GetNumberOfPoints()) + ' hits) thickness: ' + str(thickness))
+            # print('Point ' + str(i) + '(' + str(pointsOfIntersection.GetNumberOfPoints()) + ' hits) thickness: ' + str(thickness))
             colours.InsertNextTuple1(thickness)
 
         top_layer_poly_data.GetPointData().SetScalars(colours)
@@ -609,23 +610,35 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         bspTree.SetDataSet(polydata)
         bspTree.BuildLocator()
 
+        class HitPoint:
+            id = None
+            point = None
+
+            def __init__(self, i, p):
+                self.id = i
+                self.point = p
+
         # cast rays
         status("Casting " + str(preciseA*preciseS) + " rays downward..."); startTime = time.time()
         points, temporaryHitPoint = vtk.vtkPoints(), [0.0, 0.0, 0.0]
-        hitPointIdMatrix = [[None for ai in xrange(preciseA)] for si in reversed(xrange(preciseS))]
+        hitPointMatrix = [[None for ai in xrange(preciseA)] for si in reversed(xrange(preciseS))]
         for si in reversed(xrange(preciseS)):
             for ai in xrange(preciseA):
                 res = bspTree.IntersectWithLine([-r, -a/2.0 + ai*precision, -s/2.0 + si*precision], [r, -a/2.0 + ai*precision, -s/2.0 + si*precision], 0, vtk.reference(0), temporaryHitPoint, [0.0, 0.0, 0.0], vtk.reference(0), vtk.reference(0))
                 if res != 0 and -50 <= temporaryHitPoint[0] < -10:
-                    temporaryHitPoint[0] -= 0.3  # raise to guarantee visibility
-                    hitPointIdMatrix[si][ai] = points.InsertNextPoint(temporaryHitPoint)
+                    temporaryHitPoint[0] -= 0.3  # raised to improve visibility
+                    hitPointMatrix[si][ai] = HitPoint(points.InsertNextPoint(temporaryHitPoint), temporaryHitPoint[:])
 
         # form cells
-        cells = vtk.vtkCellArray()
-        for i in xrange(len(hitPointIdMatrix)-1):
-            for j in xrange(len(hitPointIdMatrix[i])-1):
-                ids = [hitPointIdMatrix[i][j], hitPointIdMatrix[i+1][j], hitPointIdMatrix[i+1][j+1], hitPointIdMatrix[i][j+1]]
-                if None not in ids: cells.InsertNextCell(4, ids)
+        cells, temporaryNormal = vtk.vtkCellArray(), [0.0, 0.0, 0.0]
+        for i in xrange(len(hitPointMatrix)-1):
+            for j in xrange(len(hitPointMatrix[i])-1):
+                hitPoints = [hitPointMatrix[i][j], hitPointMatrix[i+1][j], hitPointMatrix[i+1][j+1], hitPointMatrix[i][j+1]]
+                if None in hitPoints: continue
+                vtk.vtkTriangle().ComputeNormal(hitPoints[0].point, hitPoints[1].point, hitPoints[2].point, temporaryNormal)
+                v1, v2 = numpy.array(temporaryNormal), numpy.array([-1.0, 0.0, 0.0])     # TODO make direction configurable
+                degrees = numpy.degrees(numpy.math.atan2(len(numpy.cross(v1, v2)), numpy.dot(v1, v2)))
+                if degrees < 80: cells.InsertNextCell(4, [p.id for p in hitPoints])
         status("Finished ray-casting in " + str("%.1f" % (time.time() - startTime)) + "s, found " + str(cells.GetNumberOfCells()) + " cells...")
 
         # build polydata
@@ -747,175 +760,175 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
     #     # plot output
     #     # return output
 
-    @staticmethod
-    def amanatidesWooAlgorithm(origin, normal, parameters):
-        result = Intersection()
-        flag, tMin = SkullThicknessMappingLogic.rayBoxIntersection(origin, normal, parameters['minimum'], parameters['maximum'])
-        if flag == 0: print('[!] The ray does not intersect the grid'); return None, None
+    # @staticmethod
+    # def amanatidesWooAlgorithm(origin, normal, parameters):
+    #     result = Intersection()
+    #     flag, tMin = SkullThicknessMappingLogic.rayBoxIntersection(origin, normal, parameters['minimum'], parameters['maximum'])
+    #     if flag == 0: print('[!] The ray does not intersect the grid'); return None, None
+    #
+    #     if tMin < 0: tMin = 0
+    #     start = origin + numpy.floor(tMin, normal)
+    #     boxSize = parameters['maximum'] - parameters['minimum']
+    #     x = numpy.floor(numpy.dot(((start[0] - parameters['minimum'][0]) / boxSize[0]), parameters['dimensions'][0])) + 1
+    #     y = numpy.floor(numpy.dot(((start[1] - parameters['minimum'][1]) / boxSize[1]), parameters['dimensions'][1])) + 1
+    #     z = numpy.floor(numpy.dot(((start[2] - parameters['minimum'][2]) / boxSize[2]), parameters['dimensions'][2])) + 1
+    #     if x == (parameters['dimensions'][0] + 1): x = x - 1
+    #     if y == (parameters['dimensions'][1] + 1): y = y - 1
+    #     if z == (parameters['dimensions'][2] + 1): z = z - 1
+    #     if normal[0] >= 0:
+    #         tVoxelX = x / parameters['dimensions'][0]
+    #         stepX = 1
+    #     else:
+    #         tVoxelX = (x - 1) / parameters['dimensions'][0]
+    #         stepX = - 1
+    #     if normal[1] >= 0:
+    #         tVoxelY = y / parameters['dimensions'][1]
+    #         stepY = 1
+    #     else:
+    #         tVoxelY = (y - 1) / parameters['dimensions'][1]
+    #         stepY = - 1
+    #     if normal[2] >= 0:
+    #         tVoxelZ = z / parameters['dimensions'][2]
+    #         stepZ = 1
+    #     else:
+    #         tVoxelZ = (z - 1) / parameters['dimensions'][2]
+    #         stepZ = - 1
+    #
+    #     voxelMaxX = parameters['minimum'][0] + numpy.dot(tVoxelX, boxSize[0])
+    #     voxelMaxY = parameters['minimum'][1] + numpy.dot(tVoxelY, boxSize[1])
+    #     voxelMaxZ = parameters['minimum'][2] + numpy.dot(tVoxelZ, boxSize[2])
+    #     tMaxX = tMin + (voxelMaxX - start[0]) / normal[0]
+    #     tMaxY = tMin + (voxelMaxY - start[1]) / normal[1]
+    #     tMaxZ = tMin + (voxelMaxZ - start[2]) / normal[2]
+    #     voxelSizeX = boxSize[0] / parameters['dimensions'][0]
+    #     voxelSizeY = boxSize[1] / parameters['dimensions'][1]
+    #     voxelSizeZ = boxSize[2] / parameters['dimensions'][2]
+    #     tDeltaX = voxelSizeX / abs(normal[0])
+    #     tDeltaY = voxelSizeY / abs(normal[1])
+    #     tDeltaZ = voxelSizeZ / abs(normal[2])
+    #     i, t_flag = 1, 1
+    #     while (x <= parameters['dimensions'][0]) and (x >= 1) and (y <= parameters['dimensions'][1]) and (y >= 1) and (z <= parameters['dimensions'][2]) and (z >= 1) and t_flag:
+    #         result.voxel = [x, y, z]
+    #         result.value = parameters['dimensions'] # ???????? image(y, x, z)
+    #         # t1 = [(x - 1) / parameters['dimensions],[0 (y - 1) / parameters['dimensions'][1], (z - 1) / parameters['dimensions'][2]]
+    #         # t2 = [x / parameters['dimensions],[0 y / parameters['dimensions'][1], z / parameters['dimensions'][2]]
+    #         # vMin = (grid_3d_min_bound + numpy.multiply(t1, boxSize))
+    #         # vMax = (grid_3d_min_bound + numpy.multiply(t2, boxSize))
+    #         i = i + 1
+    #         # check if voxel [x,y,z] contains any intersection with the ray
+    #         #   if ( intersection ) break
+    #         if tMaxX < tMaxY:
+    #             if tMaxX < tMaxZ:
+    #                 x = x + stepX
+    #                 tMaxX = tMaxX + tDeltaX
+    #             else:
+    #                 z = z + stepZ
+    #                 tMaxZ = tMaxZ + tDeltaZ
+    #         else:
+    #             if tMaxY < tMaxZ:
+    #                 y = y + stepY
+    #                 tMaxY = tMaxY + tDeltaY
+    #             else:
+    #                 z = z + stepZ
+    #                 tMaxZ = tMaxZ + tDeltaZ
+    #     return result
 
-        if tMin < 0: tMin = 0
-        start = origin + numpy.floor(tMin, normal)
-        boxSize = parameters['maximum'] - parameters['minimum']
-        x = numpy.floor(numpy.dot(((start[0] - parameters['minimum'][0]) / boxSize[0]), parameters['dimensions'][0])) + 1
-        y = numpy.floor(numpy.dot(((start[1] - parameters['minimum'][1]) / boxSize[1]), parameters['dimensions'][1])) + 1
-        z = numpy.floor(numpy.dot(((start[2] - parameters['minimum'][2]) / boxSize[2]), parameters['dimensions'][2])) + 1
-        if x == (parameters['dimensions'][0] + 1): x = x - 1
-        if y == (parameters['dimensions'][1] + 1): y = y - 1
-        if z == (parameters['dimensions'][2] + 1): z = z - 1
-        if normal[0] >= 0:
-            tVoxelX = x / parameters['dimensions'][0]
-            stepX = 1
-        else:
-            tVoxelX = (x - 1) / parameters['dimensions'][0]
-            stepX = - 1
-        if normal[1] >= 0:
-            tVoxelY = y / parameters['dimensions'][1]
-            stepY = 1
-        else:
-            tVoxelY = (y - 1) / parameters['dimensions'][1]
-            stepY = - 1
-        if normal[2] >= 0:
-            tVoxelZ = z / parameters['dimensions'][2]
-            stepZ = 1
-        else:
-            tVoxelZ = (z - 1) / parameters['dimensions'][2]
-            stepZ = - 1
+    # @staticmethod
+    # def rayBoxIntersection(origin=None, direction=None, v_min=None, v_max=None):
+    #     #  Ray/box intersection using the Smits' algorithm
+    #     # Input:
+    #     #    origin.
+    #     #    direction.
+    #     #    box = (v_min,v_max)
+    #     # Output:
+    #     #    flag: (0) Reject, [0] Intersect.
+    #     #    tMin: distance from the ray origin.
+    #     # Author:
+    #     #    Jesus Mena
+    #
+    #     if direction[0] >= 0:
+    #         tMin = (v_min[0] - origin[0]) / direction[0]
+    #         tMax = (v_max[0] - origin[0]) / direction[0]
+    #     else:
+    #         tMin = (v_max[0] - origin[0]) / direction[0]
+    #         tMax = (v_min[0] - origin[0]) / direction[0]
+    #     if direction[1] >= 0:
+    #         tyMin = (v_min[1] - origin[1]) / direction[1]
+    #         tyMax = (v_max[1] - origin[1]) / direction[1]
+    #     else:
+    #         tyMin = (v_max[1] - origin[1]) / direction[1]
+    #         tyMax = (v_min[1] - origin[1]) / direction[1]
+    #     if (tMin > tyMax) or (tyMin > tMax):
+    #         flag = 0
+    #         tMin = - 1
+    #         return flag, tMin
+    #
+    #     if tyMin > tMin: tMin = numpy.copy(tyMin)
+    #     if tyMax < tMax: tMax = numpy.copy(tyMax)
+    #     if direction[2] >= 0:
+    #         tzmin = (v_min[2] - origin[2]) / direction[2]
+    #         tzmax = (v_max[2] - origin[2]) / direction[2]
+    #     else:
+    #         tzmin = (v_max[2] - origin[2]) / direction[2]
+    #         tzmax = (v_min[2] - origin[2]) / direction[2]
+    #
+    #     if (tMin > tzmax) or (tzmin > tMax):
+    #         flag = 0
+    #         tMin = - 1
+    #         return flag, tMin
+    #     if tzmin > tMin: tMin = numpy.copy(tzmin)
+    #     if tzmax < tMax: tMax = numpy.copy(tzmax)
+    #
+    #     # if( (tMin < t1) && (tMax > t0) )
+    #     flag = 1
+    #     #    flag = 0;
+    #     #    tMin = -1;
+    #     # end;
+    #     return flag, tMin
 
-        voxelMaxX = parameters['minimum'][0] + numpy.dot(tVoxelX, boxSize[0])
-        voxelMaxY = parameters['minimum'][1] + numpy.dot(tVoxelY, boxSize[1])
-        voxelMaxZ = parameters['minimum'][2] + numpy.dot(tVoxelZ, boxSize[2])
-        tMaxX = tMin + (voxelMaxX - start[0]) / normal[0]
-        tMaxY = tMin + (voxelMaxY - start[1]) / normal[1]
-        tMaxZ = tMin + (voxelMaxZ - start[2]) / normal[2]
-        voxelSizeX = boxSize[0] / parameters['dimensions'][0]
-        voxelSizeY = boxSize[1] / parameters['dimensions'][1]
-        voxelSizeZ = boxSize[2] / parameters['dimensions'][2]
-        tDeltaX = voxelSizeX / abs(normal[0])
-        tDeltaY = voxelSizeY / abs(normal[1])
-        tDeltaZ = voxelSizeZ / abs(normal[2])
-        i, t_flag = 1, 1
-        while (x <= parameters['dimensions'][0]) and (x >= 1) and (y <= parameters['dimensions'][1]) and (y >= 1) and (z <= parameters['dimensions'][2]) and (z >= 1) and t_flag:
-            result.voxel = [x, y, z]
-            result.value = parameters['dimensions'] # ???????? image(y, x, z)
-            # t1 = [(x - 1) / parameters['dimensions],[0 (y - 1) / parameters['dimensions'][1], (z - 1) / parameters['dimensions'][2]]
-            # t2 = [x / parameters['dimensions],[0 y / parameters['dimensions'][1], z / parameters['dimensions'][2]]
-            # vMin = (grid_3d_min_bound + numpy.multiply(t1, boxSize))
-            # vMax = (grid_3d_min_bound + numpy.multiply(t2, boxSize))
-            i = i + 1
-            # check if voxel [x,y,z] contains any intersection with the ray
-            #   if ( intersection ) break
-            if tMaxX < tMaxY:
-                if tMaxX < tMaxZ:
-                    x = x + stepX
-                    tMaxX = tMaxX + tDeltaX
-                else:
-                    z = z + stepZ
-                    tMaxZ = tMaxZ + tDeltaZ
-            else:
-                if tMaxY < tMaxZ:
-                    y = y + stepY
-                    tMaxY = tMaxY + tDeltaY
-                else:
-                    z = z + stepZ
-                    tMaxZ = tMaxZ + tDeltaZ
-        return result
-
-    @staticmethod
-    def rayBoxIntersection(origin=None, direction=None, v_min=None, v_max=None):
-        #  Ray/box intersection using the Smits' algorithm
-        # Input:
-        #    origin.
-        #    direction.
-        #    box = (v_min,v_max)
-        # Output:
-        #    flag: (0) Reject, [0] Intersect.
-        #    tMin: distance from the ray origin.
-        # Author:
-        #    Jesus Mena
-
-        if direction[0] >= 0:
-            tMin = (v_min[0] - origin[0]) / direction[0]
-            tMax = (v_max[0] - origin[0]) / direction[0]
-        else:
-            tMin = (v_max[0] - origin[0]) / direction[0]
-            tMax = (v_min[0] - origin[0]) / direction[0]
-        if direction[1] >= 0:
-            tyMin = (v_min[1] - origin[1]) / direction[1]
-            tyMax = (v_max[1] - origin[1]) / direction[1]
-        else:
-            tyMin = (v_max[1] - origin[1]) / direction[1]
-            tyMax = (v_min[1] - origin[1]) / direction[1]
-        if (tMin > tyMax) or (tyMin > tMax):
-            flag = 0
-            tMin = - 1
-            return flag, tMin
-
-        if tyMin > tMin: tMin = numpy.copy(tyMin)
-        if tyMax < tMax: tMax = numpy.copy(tyMax)
-        if direction[2] >= 0:
-            tzmin = (v_min[2] - origin[2]) / direction[2]
-            tzmax = (v_max[2] - origin[2]) / direction[2]
-        else:
-            tzmin = (v_max[2] - origin[2]) / direction[2]
-            tzmax = (v_min[2] - origin[2]) / direction[2]
-
-        if (tMin > tzmax) or (tzmin > tMax):
-            flag = 0
-            tMin = - 1
-            return flag, tMin
-        if tzmin > tMin: tMin = numpy.copy(tzmin)
-        if tzmax < tMax: tMax = numpy.copy(tzmax)
-
-        # if( (tMin < t1) && (tMax > t0) )
-        flag = 1
-        #    flag = 0;
-        #    tMin = -1;
-        # end;
-        return flag, tMin
-
-    @staticmethod
-    def calculate_distance(data, parameters, status):
-        # TODO ---------- remove
-        n_dura_voxel = parameters['n_dura_voxel']
-        thresh_aircell = parameters['thresh_aircell']
-        thresh_dura = parameters['thresh_dura']
-        thresh_bone = parameters['thresh_bone']
-        n_outward_bone_check = parameters['n_outward_bone_check']
-
-        # ----- x,y,z mesh grid of dimension ranges
-        status("Generating dimension resolution matrix from image...")
-        dimensions = [float(d) for d in data['image'].GetImageData().GetDimensions()]
-        spacing = [float(s) for s in data['image'].GetSpacing()]
-        arange = [numpy.arange(0, numpy.dot((dimensions[i] - 1), s) + s, s) for i, s in enumerate(spacing)]
-        xMesh, yMesh, zMesh = numpy.meshgrid(arange[0], arange[1], arange[2])
-
-        # ----- get triangles from outer stl file
-        status("Calculating centers and normals from outer model..."); startTime = time.time()
-        facets = []
-        outerPoints = data['outer_stl'].GetPolyData().GetPoints().GetData()
-        outerPolyData = data['outer_stl'].GetPolyData().GetPolys().GetData()
-        connections = [int(outerPolyData.GetTuple(i)) for i in xrange(outerPolyData.GetNumberOfTuples())]
-        for connection in itertools.izip_longest(*[iter(connections)] * 4):
-            vertices = [[outerPoints.GetValue(i*3), outerPoints.GetValue(i*3+1), outerPoints.GetValue(i*3+2)] for i in connection[1:4]]
-            facet = Facet(c=[0, 0, 0], n=[0, 0, 0])
-            vtk.vtkTriangle.TriangleCenter(vertices[0], vertices[1], vertices[2], facet.center)
-            vtk.vtkTriangle.ComputeNormal(vertices[0], vertices[1], vertices[2], facet.normal)
-            facets.append(facet)
-        status("Finished " + str(len(facets)) + " facets in " + str("%.1f"%(time.time()-startTime)) + " seconds...")
-
-        # ----- calculate
-        status("Calculating thickness..."); startTime = time.time()
-        for facet in facets:
-            parameters = {'dimensions': dimensions, 'minimum' : [0, 0, 0], 'maximum' : [(dimensions[i]-1)*s for i, s in enumerate(spacing)]}
-            outwardsIntersection = SkullThicknessMappingLogic.amanatidesWooAlgorithm(facet.center, facet.normal_outward(), parameters)
-            # TODO in each direction get the voxel values in n_outward_bone_check length, then get max, then check if thats in threshold
-            # if max(g_outside(arange(1, n_outward_bone_check))) >= thresh_bone:
-            # if max(outwardsIntersection.value(arange(1, parameters['n_outward_bone_check']))) >= parameters['thresh_bone']:
-            #   new_origin_voxel = find(g_outside >= thresh_bone, 1, 'last')
-            #   origin = concat([mesh_x(1, iv_outside(new_origin_voxel, 1), 1), mesh_y(iv_outside(new_origin_voxel, 2), 1, 1), mesh_z(1, 1, iv_outside(new_origin_voxel, 3))])
-            # TODO implement intersection class
-            inwardsIntersection = SkullThicknessMappingLogic.amanatidesWooAlgorithm(facet.center, facet.normal_inward(), parameters)
-        status("Finished calculating thickness in " + str("%.1f"%(time.time()-startTime)) + " seconds...")
+    # @staticmethod
+    # def calculate_distance(data, parameters, status):
+    #     # TODO ---------- remove
+    #     n_dura_voxel = parameters['n_dura_voxel']
+    #     thresh_aircell = parameters['thresh_aircell']
+    #     thresh_dura = parameters['thresh_dura']
+    #     thresh_bone = parameters['thresh_bone']
+    #     n_outward_bone_check = parameters['n_outward_bone_check']
+    #
+    #     # ----- x,y,z mesh grid of dimension ranges
+    #     status("Generating dimension resolution matrix from image...")
+    #     dimensions = [float(d) for d in data['image'].GetImageData().GetDimensions()]
+    #     spacing = [float(s) for s in data['image'].GetSpacing()]
+    #     arange = [numpy.arange(0, numpy.dot((dimensions[i] - 1), s) + s, s) for i, s in enumerate(spacing)]
+    #     xMesh, yMesh, zMesh = numpy.meshgrid(arange[0], arange[1], arange[2])
+    #
+    #     # ----- get triangles from outer stl file
+    #     status("Calculating centers and normals from outer model..."); startTime = time.time()
+    #     facets = []
+    #     outerPoints = data['outer_stl'].GetPolyData().GetPoints().GetData()
+    #     outerPolyData = data['outer_stl'].GetPolyData().GetPolys().GetData()
+    #     connections = [int(outerPolyData.GetTuple(i)) for i in xrange(outerPolyData.GetNumberOfTuples())]
+    #     for connection in itertools.izip_longest(*[iter(connections)] * 4):
+    #         vertices = [[outerPoints.GetValue(i*3), outerPoints.GetValue(i*3+1), outerPoints.GetValue(i*3+2)] for i in connection[1:4]]
+    #         facet = Facet(c=[0, 0, 0], n=[0, 0, 0])
+    #         vtk.vtkTriangle.TriangleCenter(vertices[0], vertices[1], vertices[2], facet.center)
+    #         vtk.vtkTriangle.ComputeNormal(vertices[0], vertices[1], vertices[2], facet.normal)
+    #         facets.append(facet)
+    #     status("Finished " + str(len(facets)) + " facets in " + str("%.1f"%(time.time()-startTime)) + " seconds...")
+    #
+    #     # ----- calculate
+    #     status("Calculating thickness..."); startTime = time.time()
+    #     for facet in facets:
+    #         parameters = {'dimensions': dimensions, 'minimum' : [0, 0, 0], 'maximum' : [(dimensions[i]-1)*s for i, s in enumerate(spacing)]}
+    #         outwardsIntersection = SkullThicknessMappingLogic.amanatidesWooAlgorithm(facet.center, facet.normal_outward(), parameters)
+    #         # TODO in each direction get the voxel values in n_outward_bone_check length, then get max, then check if thats in threshold
+    #         # if max(g_outside(arange(1, n_outward_bone_check))) >= thresh_bone:
+    #         # if max(outwardsIntersection.value(arange(1, parameters['n_outward_bone_check']))) >= parameters['thresh_bone']:
+    #         #   new_origin_voxel = find(g_outside >= thresh_bone, 1, 'last')
+    #         #   origin = concat([mesh_x(1, iv_outside(new_origin_voxel, 1), 1), mesh_y(iv_outside(new_origin_voxel, 2), 1, 1), mesh_z(1, 1, iv_outside(new_origin_voxel, 3))])
+    #         # TODO implement intersection class
+    #         inwardsIntersection = SkullThicknessMappingLogic.amanatidesWooAlgorithm(facet.center, facet.normal_inward(), parameters)
+    #     status("Finished calculating thickness in " + str("%.1f"%(time.time()-startTime)) + " seconds...")
 
 
     #     c = data['outer_stl'].centers
