@@ -2,13 +2,9 @@ import inspect
 
 import slicer
 import numpy
-import itertools
-import re
-import multiprocessing
 import time
 import qt
 import vtk
-from multiprocessing.dummy import Pool
 from slicer.ScriptedLoadableModule import *
 
 
@@ -37,6 +33,15 @@ class InterfaceTools:
         if on_click is not None: s.connect("currentNodeChanged(bool)", on_click)
         return s
 
+
+class HitPoint:
+    pid = None
+    point = None
+    normal = [0.0, 0.0, 0.0]
+
+    def __init__(self, pid, point):
+        self.pid = pid
+        self.point = point
 
 # class Facet:
 #     normal = None
@@ -105,6 +110,7 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
     volume = None
     polyData = None
     topLayerPolyData = None
+    hitPointList = None
     modelNode = None
 
     def __init__(self, parent=None):
@@ -135,35 +141,31 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         slicer.app.processEvents()
 
     def process(self):
-        # testing TODO REMOVE
-        slicer.mrmlScene.Clear()
-        path = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Sample/Images/1601L.img"
-        node = slicer.util.loadVolume(path, returnNode=True)[1]
-        self.volume.setCurrentNode(node)
-        # end testing area
+        # TODO REMOVE testing
+        testingMethod = 1
+        if testingMethod == 1:
+            slicer.mrmlScene.Clear()
+            path = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Sample/Images/1601L.img"
+            node = slicer.util.loadVolume(path, returnNode=True)[1]
+            self.volume.setCurrentNode(node)
+            SkullThicknessMappingLogic.reset_view()
+            image = self.volume.currentNode()
+            self.polyData = SkullThicknessMappingLogic.process_segmentation(image, self.update_status)
+            self.topLayerPolyData, self.hitPointList = SkullThicknessMappingLogic.rainfall_quad_cast(self.polyData, image.GetImageData().GetDimensions(), self.update_status)
+        elif testingMethod == 2:
+            slicer.mrmlScene.Clear()
+            path = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Sample/Shapes/sphere.obj"
+            node = slicer.util.loadModel(path, returnNode=True)[1]
+            self.polyData = node.GetPolyData()
+            self.topLayerPolyData, self.hitPointList = SkullThicknessMappingLogic.rainfall_quad_cast(self.polyData, [500, 500, 500], self.update_status)
 
-        if self.volume.currentNode() is None: return
-        # SkullThicknessMappingLogic.process(self.volume.currentNode(), self.rest.currentNode(), self.outer.currentNode(), self.update_status)
-        # SkullThicknessMappingLogic.process(self.volume.currentNode(), self.update_status)
-        image = self.volume.currentNode()
-        SkullThicknessMappingLogic.reset_view()
-        self.polyData, segmentationNode = SkullThicknessMappingLogic.process_segmentation(image, self.update_status)
-        # topLayerCellIds = SkullThicknessMappingLogic.rainfall_ray_cast(polydata, image.GetImageData().GetDimensions(), status)
-        # topLayerCellIds = SkullThicknessMappingLogic.inflate_cellIds(topLayerCellIds, polydata, status)
-        # topLayerPolyData = SkullThicknessMappingLogic.collect_and_build_polydata_from_cellIds_and_polydata(topLayerCellIds, polydata, status)
-        self.topLayerPolyData = SkullThicknessMappingLogic.rainfall_quad_cast(self.polyData, image.GetImageData().GetDimensions(), self.update_status)
-        self.modelNode = SkullThicknessMappingLogic.build_model(self.topLayerPolyData, self.update_status)
-        SkullThicknessMappingLogic.ray_cast_color_thickness(self.polyData, self.topLayerPolyData, self.modelNode, self.update_status)
-        # SkullThicknessMappingLogic.multi_colour_test(topLayerPolyData)
-        # SkullThicknessMappingLogic.add_polydata_to_segmentation_node(topLayerPolyData, segmentationNode, status)
-
-        # highlight top section
-        # iterate through top section with normalized ray cast
-        # record distance to first air pocket with threshold
-        # record distance of skull
-        # visualize
-        # cast to labelmap
-        # populate colours
+        if self.volume.currentNode() is None and testingMethod is None:
+            SkullThicknessMappingLogic.reset_view()
+            image = self.volume.currentNode()
+            self.polyData = SkullThicknessMappingLogic.process_segmentation(image, self.update_status)
+            self.topLayerPolyData, self.hitPointList = SkullThicknessMappingLogic.rainfall_quad_cast(self.polyData, image.GetImageData().GetDimensions(), self.update_status)
+            self.modelNode = SkullThicknessMappingLogic.build_model(self.topLayerPolyData, self.update_status)
+            SkullThicknessMappingLogic.ray_cast_color_thickness(self.polyData, self.topLayerPolyData, self.hitPointList, self.modelNode, self.update_status)
 
 
 class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
@@ -192,7 +194,7 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         return modelNode
 
     @staticmethod
-    def ray_cast_color_thickness(poly_data, top_layer_poly_data, model_node, status):
+    def ray_cast_color_thickness(poly_data, top_layer_poly_data, hit_point_list, model_node, status):
         status("Building intersection object tree...")
         bspTree = vtk.vtkModifiedBSPTree()
         bspTree.SetDataSet(poly_data)
@@ -203,25 +205,23 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         colours.SetName('Thickness')
         # colours.SetNumberOfComponents(3)
         pointsOfIntersection, cellsOfIntersection = vtk.vtkPoints(), vtk.vtkIdList()
-        for i in xrange(top_layer_poly_data.GetNumberOfPoints()):
-            # if i == 100: break
-            point = top_layer_poly_data.GetPoint(i)
-            res = bspTree.IntersectWithLine([-100, point[1], point[2]], [100, point[1], point[2]], 0, pointsOfIntersection, cellsOfIntersection)
+        for hitPoint in hit_point_list:
+            start = [hitPoint.point[0] + hitPoint.normal[0]*100, hitPoint.point[1] + hitPoint.normal[1]*100, hitPoint.point[2] + hitPoint.normal[2]*100]
+            end = [hitPoint.point[0] - hitPoint.normal[0]*100, hitPoint.point[1] - hitPoint.normal[1]*100, hitPoint.point[2] - hitPoint.normal[2]*100]
+            # slicer.modules.markups.logic().AddFiducial(start[0], start[1], start[2])
+            # slicer.modules.markups.logic().AddFiducial(end[0], end[1], end[2])
+            # slicer.modules.markups.logic().AddFiducial(hitPoint.point[0], hitPoint.point[1], hitPoint.point[2])
+            res = bspTree.IntersectWithLine(start, end, 0, pointsOfIntersection, cellsOfIntersection)
             if pointsOfIntersection.GetNumberOfPoints() < 2: continue
-            # TODO get point
-            # TODO find 4 connected cells
-            # TODO average normals
-            # TODO cast normal
             p1, p2 = pointsOfIntersection.GetPoint(0), pointsOfIntersection.GetPoint(pointsOfIntersection.GetNumberOfPoints()-1)
             # p1, p2 = pointsOfIntersection.GetPoint(0), pointsOfIntersection.GetPoint(1)
-            # slicer.modules.markups.logic().AddFiducial(p1[0], p1[1], p1[2])
-            # slicer.modules.markups.logic().AddFiducial(p2[0], p2[1], p2[2])
+
             thickness = numpy.linalg.norm(numpy.array((p1[0], p1[1], p1[2])) - numpy.array((p2[0], p2[1], p2[2])))
             # thickness = numpy.abs(p1[0] - p2[1])
             # thickness = numpy.random.randint(0, 255)
             thickness = thickness*20
             # print('Point ' + str(i) + '(' + str(pointsOfIntersection.GetNumberOfPoints()) + ' hits) thickness: ' + str(thickness))
-            colours.InsertNextTuple1(thickness)
+            colours.InsertTuple1(hitPoint.pid, thickness)
 
         top_layer_poly_data.GetPointData().SetScalars(colours)
         top_layer_poly_data.Modified()
@@ -234,35 +234,7 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         displayNode.SetScalarRangeFlag(slicer.vtkMRMLDisplayNode.UseColorNodeScalarRange)
         status("Complete...")
 
-        #TODO display on slice views
-
-    @staticmethod
-    def multi_colour_test(polydata):
-        colors = vtk.vtkUnsignedCharArray()
-        colors.SetName('Color')
-        colors.SetNumberOfComponents(3)
-        for i in xrange(polydata.GetNumberOfPoints()):
-            c = numpy.random.randint(0, 255)
-            colors.InsertNextTuple3(c, c, c)
-
-        polydata.GetPointData().SetScalars(colors)
-        polydata.Modified()
-
-        modelNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLModelNode')
-        modelNode.SetAndObservePolyData(polydata)
-        modelNode.CreateDefaultDisplayNodes()
-
-        modelDisplayNode = modelNode.GetModelDisplayNode()
-        modelDisplayNode.SetFrontfaceCulling(0)
-        modelDisplayNode.SetBackfaceCulling(0)
-
-        displayNode = modelNode.GetDisplayNode()
-        displayNode.SetActiveScalarName('Color')
-        displayNode.SetAndObserveColorNodeID('vtkMRMLColorTableNodeFullRainbow')
-        displayNode.ScalarVisibilityOn()
-        # displayNode.AutoScalarRangeOn()
-        displayNode.SetScalarRangeFlag(slicer.vtkMRMLDisplayNode.UseColorNodeScalarRange)
-        print("done")
+        # TODO display on slice views
 
     @staticmethod
     def process_segmentation(image, status):
@@ -335,17 +307,10 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         # Make sure surface mesh cells are consistently oriented
         status("Retrieving surface mesh...")
         polyData = segmentationNode.GetClosedSurfaceRepresentation(segmentId)
-        # TODO move around
-        # normals = vtk.vtkPolyDataNormals()
-        # normals.AutoOrientNormalsOn()
-        # normals.ConsistencyOn()
-        # normals.SetInputData(surfaceMesh)
-        # normals.Update()
-        return polyData, segmentationNode
+        return polyData
 
 
-
-        # Build inspection tree
+        # TODO remove (testing ray cast)
         status("Building intersection object tree...")
         # obbTree = vtk.vtkCellLocator()
         obbTree = vtk.vtkModifiedBSPTree()
@@ -380,7 +345,7 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         # for i in xrange(pointIds.GetNumberOfIds()): print(points.GetId(i))
         # status("Finished attempt with resultant: " + str(pointsOfIntersection.GetNumberOfPoints()))
 
-
+        # TODO remove (testing ray cast)
         # Generate 'rainfall' ray trajectories
         status("Generating rainfall ray trajectories...")
         r, a, s = image.GetImageData().GetDimensions()
@@ -413,6 +378,7 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         #     topLayerCells.InsertNextCell(cell)
         #     if topLayerCells.GetNumberOfCells() > 10: break
 
+        # TODO remove (testing ray cast)
         # Render the top layer
         status("Done rain-fall ray-cast in " + str("%.1f" % (time.time() - startTime)) + ", rendering top-layer " + str(topLayerCells.GetNumberOfCells()) + " polygons ...")
         topLayerPolyData = vtk.vtkPolyData()
@@ -423,13 +389,7 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         status("Top layer rendered...")
         return
 
-
-
-
-
-
-
-
+        # TODO remove (testing ray cast)
         # converting back
         status("Testing modification...")
         polyData = normals.GetOutput()  # contains points, point data normals, cells, polygons, bounds
@@ -610,14 +570,6 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         bspTree.SetDataSet(polydata)
         bspTree.BuildLocator()
 
-        class HitPoint:
-            id = None
-            point = None
-
-            def __init__(self, i, p):
-                self.id = i
-                self.point = p
-
         # cast rays
         status("Casting " + str(preciseA*preciseS) + " rays downward..."); startTime = time.time()
         points, temporaryHitPoint = vtk.vtkPoints(), [0.0, 0.0, 0.0]
@@ -630,15 +582,16 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
                     hitPointMatrix[si][ai] = HitPoint(points.InsertNextPoint(temporaryHitPoint), temporaryHitPoint[:])
 
         # form cells
-        cells, temporaryNormal = vtk.vtkCellArray(), [0.0, 0.0, 0.0]
+        cells = vtk.vtkCellArray()
         for i in xrange(len(hitPointMatrix)-1):
             for j in xrange(len(hitPointMatrix[i])-1):
                 hitPoints = [hitPointMatrix[i][j], hitPointMatrix[i+1][j], hitPointMatrix[i+1][j+1], hitPointMatrix[i][j+1]]
                 if None in hitPoints: continue
-                vtk.vtkTriangle().ComputeNormal(hitPoints[0].point, hitPoints[1].point, hitPoints[2].point, temporaryNormal)
-                v1, v2 = numpy.array(temporaryNormal), numpy.array([-1.0, 0.0, 0.0])     # TODO make direction configurable
+                rawNormal = numpy.linalg.solve(numpy.array([hitPoints[0].point, hitPoints[1].point, hitPoints[2].point]), [1, 1, 1])
+                hitPointMatrix[i][j].normal = rawNormal / numpy.sqrt(numpy.sum(rawNormal**2))
+                v1, v2 = numpy.array(hitPointMatrix[i][j].normal), numpy.array([-1.0, 0.0, 0.0])     # TODO make direction configurable
                 degrees = numpy.degrees(numpy.math.atan2(len(numpy.cross(v1, v2)), numpy.dot(v1, v2)))
-                if degrees < 80: cells.InsertNextCell(4, [p.id for p in hitPoints])
+                if degrees < 80: cells.InsertNextCell(4, [p.pid for p in hitPoints])
         status("Finished ray-casting in " + str("%.1f" % (time.time() - startTime)) + "s, found " + str(cells.GetNumberOfCells()) + " cells...")
 
         # build polydata
@@ -646,7 +599,7 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         topLayerPolyData.SetPoints(points)
         topLayerPolyData.SetPolys(cells)
         topLayerPolyData.Modified()
-        return topLayerPolyData
+        return topLayerPolyData, [p for r in hitPointMatrix for p in r if p is not None]
 
     @staticmethod
     def rainfall_ray_cast(polydata, dimensions, status):
