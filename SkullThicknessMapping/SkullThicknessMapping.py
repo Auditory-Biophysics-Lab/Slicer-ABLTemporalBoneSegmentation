@@ -152,6 +152,8 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
             image = self.volume.currentNode()
             self.polyData = SkullThicknessMappingLogic.process_segmentation(image, self.update_status)
             self.topLayerPolyData, self.hitPointList = SkullThicknessMappingLogic.rainfall_quad_cast(self.polyData, image.GetImageData().GetDimensions(), self.update_status)
+            self.modelNode = SkullThicknessMappingLogic.build_model(self.topLayerPolyData, self.update_status)
+            SkullThicknessMappingLogic.ray_cast_color_thickness(self.polyData, self.topLayerPolyData, self.hitPointList, self.modelNode, self.update_status)
         elif testingMethod == 2:
             slicer.mrmlScene.Clear()
             path = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Sample/Shapes/sphere.obj"
