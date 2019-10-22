@@ -158,6 +158,8 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
             node = slicer.util.loadModel(path, returnNode=True)[1]
             self.polyData = node.GetPolyData()
             self.topLayerPolyData, self.hitPointList = SkullThicknessMappingLogic.rainfall_quad_cast(self.polyData, [500, 500, 500], self.update_status)
+            self.modelNode = SkullThicknessMappingLogic.build_model(self.topLayerPolyData, self.update_status)
+            SkullThicknessMappingLogic.ray_cast_color_thickness(self.polyData, self.topLayerPolyData, self.hitPointList, self.modelNode, self.update_status)
 
         if self.volume.currentNode() is None and testingMethod is None:
             SkullThicknessMappingLogic.reset_view()
