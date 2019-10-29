@@ -27,8 +27,9 @@ class InterfaceTools:
         return i
 
     @staticmethod
-    def build_button(title, on_click):
+    def build_button(title, on_click, tooltip=None):
         b = qt.QPushButton(title)
+        if tooltip is not None: b.setToolTip(tooltip)
         b.connect('clicked(bool)', on_click)
         return b
 
@@ -139,7 +140,20 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
 
         self.processTools = qt.QFrame()
         box = qt.QHBoxLayout(self.processTools)
-        box.addWidget(InterfaceTools.build_button('Add Custom Elastix', lambda: self.click_add_registration_step(RegistrationType.CUSTOM_ELASTIX)))
+        box.addWidget(InterfaceTools.build_button('Add Custom Elastix', lambda: self.click_add_registration_step(RegistrationType.CUSTOM_ELASTIX), tooltip=str({
+            'transformType': 'Rigid',
+            'samplingPercentage'    : 1.0,
+            'initialTransformMode'  : 'off',
+            'maskProcessingMode'    : 'NOMASK',  # TODO double check Masking = NOMASK
+            'costMetric'            : 'NC',
+            'numberOfIterations'    : 1000,   # TODO check if theres a max param
+            'minimumStepLength'	    : 0.0000001,
+            'maximumStepLength'     : 0.001,
+            'skewScale'             : 1.0,
+            'reproportionScale'     : 1.0,
+            'relaxationFactor'      : 0.5,
+            'translationScale'      : 1.0  # aka transform scale
+        })))
         box.addWidget(InterfaceTools.build_button('Add Custom BRAINS', lambda: self.click_add_registration_step(RegistrationType.CUSTOM_BRAINS)))
         b = InterfaceTools.build_button('Clear', self.click_clear_registration_step)
         b.setFixedWidth(60)
