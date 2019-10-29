@@ -140,21 +140,21 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
 
         self.processTools = qt.QFrame()
         box = qt.QHBoxLayout(self.processTools)
-        box.addWidget(InterfaceTools.build_button('Add Custom Elastix', lambda: self.click_add_registration_step(RegistrationType.CUSTOM_ELASTIX), tooltip=str({
-            'transformType': 'Rigid',
-            'samplingPercentage'    : 1.0,
-            'initialTransformMode'  : 'off',
-            'maskProcessingMode'    : 'NOMASK',  # TODO double check Masking = NOMASK
-            'costMetric'            : 'NC',
-            'numberOfIterations'    : 1000,   # TODO check if theres a max param
-            'minimumStepLength'	    : 0.0000001,
-            'maximumStepLength'     : 0.001,
-            'skewScale'             : 1.0,
-            'reproportionScale'     : 1.0,
-            'relaxationFactor'      : 0.5,
-            'translationScale'      : 1.0  # aka transform scale
-        })))
-        box.addWidget(InterfaceTools.build_button('Add Custom BRAINS', lambda: self.click_add_registration_step(RegistrationType.CUSTOM_BRAINS)))
+        box.addWidget(InterfaceTools.build_button('Add Custom Elastix', lambda: self.click_add_registration_step(RegistrationType.CUSTOM_ELASTIX)))
+        box.addWidget(InterfaceTools.build_button('Add Custom BRAINS', lambda: self.click_add_registration_step(RegistrationType.CUSTOM_BRAINS), tooltip=
+            'transformType         : Rigid' + '\n' +
+            'samplingPercentage    : 1.0' + '\n' +
+            'initialTransformMode  : off' + '\n' +
+            'maskProcessingMode    : NOMASK' + '\n' +
+            'costMetric            : NC' + '\n' +
+            'numberOfIterations    : 1000' + '\n' +
+            'minimumStepLength	   : 0.0000001' + '\n' +
+            'maximumStepLength     : 0.001' + '\n' +
+            'skewScale             : 1.0' + '\n' +
+            'reproportionScale     : 1.0' + '\n' +
+            'relaxationFactor      : 0.5' + '\n' +
+            'translationScale      : 1.0'
+        ))
         b = InterfaceTools.build_button('Clear', self.click_clear_registration_step)
         b.setFixedWidth(60)
         box.addWidget(b)
