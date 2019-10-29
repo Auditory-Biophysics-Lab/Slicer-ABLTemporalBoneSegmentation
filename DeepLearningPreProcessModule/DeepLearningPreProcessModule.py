@@ -42,7 +42,7 @@ class DeepLearningPreProcessModule(ScriptedLoadableModule):
         self.parent.dependencies = []
         self.parent.contributors = ["Luke Helpard (Western University) and Evan Simpson (Western University)"]
         self.parent.helpText = "" + self.getDefaultModuleDocumentationLink()
-        self.parent.acknowledgementText = "This file was originally developed by Luke Helpard and Evan Simpson at The University of Western Ontario in the HML/SKA Auditory Biophysics Lab."
+        self.parent.acknowledgementText = "This module was originally developed by Evan Simpson at The University of Western Ontario in the HML/SKA Auditory Biophysics Lab."
 
 
 # Interface tools
@@ -557,11 +557,11 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
             self.rigidProgress.visible = True
             self.rigidCancelButton.visible = True
             self.rigidApplyButton.visible = False
-            return DeepLearningPreProcessModuleLogic().apply_rigid_registration(elastix=self.elastixLogic,
-                                                                                atlas_node=self.atlasNode,
-                                                                                moving_node=self.movingSelector.currentNode(),
-                                                                                mask_node=self.maskNode,
-                                                                                log_callback=self.update_rigid_progress)
+            return DeepLearningPreProcessModuleLogic().apply_elastix_rigid_registration(elastix=self.elastixLogic,
+                                                                                        atlas_node=self.atlasNode,
+                                                                                        moving_node=self.movingSelector.currentNode(),
+                                                                                        mask_node=self.maskNode,
+                                                                                        log_callback=self.update_rigid_progress)
         self.process_transform(function, corresponding_button=self.rigidApplyButton, set_moving_volume=True)
 
     def click_rigid_cancel(self):
@@ -569,35 +569,6 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         self.rigidProgress.visible = False
         self.rigidCancelButton.visible = False
         DeepLearningPreProcessModuleLogic.attempt_abort_rigid_registration(self.elastixLogic)
-
-    # TODO remove
-    # def click_flip_volume(self):
-    #     logic = DeepLearningPreProcessModuleLogic()
-    #     print("Flipping...")
-    #
-    #     vtkMatrix = vtk.vtkMatrix4x4()
-    #     for row in range(4):
-    #         for col in range(4):
-    #             if row == col and row == 0:
-    #                 vtkMatrix.SetElement(row, col, -1)
-    #             elif row == col:
-    #                 vtkMatrix.SetElement(row, col, 1)
-    #             else:
-    #                 vtkMatrix.SetElement(row, col, 0)
-    #
-    #     # Create MRML transform node
-    #     self.transformNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLLinearTransformNode')
-    #     self.transformNode.SetAndObserveMatrixTransformToParent(vtkMatrix)
-    #
-    #     self.inputNode.SetAndObserveTransformNodeID(self.transformNode.GetID())
-    #     slicer.vtkSlicerTransformLogic().hardenTransform(self.inputNode)
-    #
-    #     self.resampleButton.enabled = True
-
-    # def onApplyButton(self):
-    # logic = DeepLearningTestLogic()
-    # enableScreenshotsFlag = self.enableScreenshotsFlagCheckBox.checked
-    # logic.run(self.inputSelector.currentNode())
 
 
 # Main Logic
@@ -708,13 +679,14 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
         return transformed_node
 
     @staticmethod
-    def apply_rigid_registration(elastix, atlas_node, moving_node, mask_node, log_callback, copy=True):
+    def apply_elastix_rigid_registration(elastix, atlas_node, moving_node, mask_node, log_callback, copy=True):
         outputVolumeNode = moving_node
         if copy:
             outputVolumeNode = slicer.vtkMRMLScalarVolumeNode()
             outputVolumeNode.Copy(moving_node)
-            outputVolumeNode.SetName(moving_node.GetName() + " +Rigid")
+            outputVolumeNode.SetName(moving_node.GetName() + " +Elastix")
         transform_node = slicer.vtkMRMLTransformNode()
+        transform_node.SetName(moving_node.GetName() + ' Elastix transform')
         slicer.mrmlScene.AddNode(transform_node)
         elastix.registrationParameterFilesDir = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + '/Resources/Parameters/'
         elastix.logStandardOutput = True
@@ -728,11 +700,10 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
             fixedVolumeMaskNode=mask_node,
             movingVolumeMaskNode=mask_node
         )
-        print("TRANSFORM GENERATED: ")
-        print(transform_node)
+        print('TRANSFORM GENERATED: ' + str(transform_node))
         outputVolumeNode.ApplyTransform(transform_node.GetTransformToParent())
         outputVolumeNode.HardenTransform()
-        outputVolumeNode.SetName(moving_node.GetName() + " +Rigid")
+        outputVolumeNode.SetName(moving_node.GetName() + " +Elastix")
         slicer.mrmlScene.AddNode(outputVolumeNode)
         return outputVolumeNode
 
@@ -770,59 +741,6 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
         dialog.setAcceptMode(qt.QFileDialog.AcceptSave)
         if dialog.exec_() != qt.QDialog.Accepted: return
         o = slicer.util.saveNode(node=node, filename=dialog.selectedFiles()[0] + next(t for t in supportedSaveTypes if t["title"] == dialog.selectedNameFilter())['value'])
-
-    # TODO remove
-    # def run_flip(self, volume):
-    #     # Create VTK matrix object #Credit to Fernando
-    #     vtkMatrix = vtk.vtkMatrix4x4()
-    #     for row in range(4):
-    #         for col in range(4):
-    #             if row == col and row == 0:
-    #                 vtkMatrix.SetElement(row, col, -1)
-    #             elif row == col:
-    #                 vtkMatrix.SetElement(row, col, 1)
-    #             else:
-    #                 vtkMatrix.SetElement(row, col, 0)
-    #
-    #     # Create MRML transform node
-    #     self.transformNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLLinearTransformNode')
-    #     self.transformNode.SetAndObserveMatrixTransformToParent(vtkMatrix)
-    #
-    #     volume.SetAndObserveTransformNodeID(self.transformNode.GetID())
-    #     slicer.vtkSlicerTransformLogic().hardenTransform(volume)
-    #
-    # def has_image_data(self, volume_node):
-    #     """This is an example logic method that
-    # returns true if the passed in volume
-    # node has valid image data
-    # """
-    #     if not volume_node:
-    #         logging.debug('hasImageData failed: no volume node')
-    #         return False
-    #     if volume_node.GetImageData() is None:
-    #         logging.debug('hasImageData failed: no image data in volume node')
-    #         return False
-    #     return True
-    #
-    # def is_valid_input_output_data(self, input_volume_node, output_volume_node):
-    #     """Validates if the output is not the same as input
-    # """
-    #     if not input_volume_node:
-    #         logging.debug('isValidInputOutputData failed: no input volume node defined')
-    #         return False
-    #     if input_volume_node.GetID() == output_volume_node.GetID():
-    #         logging.debug(
-    #             'isValidInputOutputData failed: input and output volume is the same. Create a new volume for output '
-    #             'to avoid this error.'
-    #         )
-    #         return False
-    #     return True
-    #
-    # def run(self, input_volume, output_volume, image_threshold, enable_screenshots=0):
-    #     """
-    # Run the actual algorithm
-    # """
-    #     return True
 
 
 # Testing
