@@ -156,7 +156,7 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
             'translationScale      : 1.0'
         ))
         b = InterfaceTools.build_button('Clear', self.click_clear_registration_step)
-        b.setFixedWidth(60)
+        b.setFixedWidth(73)
         box.addWidget(b)
         box.setContentsMargins(0, 0, 0, 0)
 

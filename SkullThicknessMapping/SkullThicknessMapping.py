@@ -58,6 +58,18 @@ class InterfaceTools:
         if click is not None: box.connect('valueChanged(int)', click)
         return box
 
+    @staticmethod
+    def build_radio_button(title, on_click, checked=False, tooltip=None):
+        b = qt.QRadioButton(title)
+        b.connect('clicked(bool)', on_click)
+        b.setChecked(checked)
+        return b
+
+
+class SkullThicknessMappingType:
+    THICKNESS = 'Thickness'
+    AIR_CELL = 'Distance to first air cell'
+
 
 class SkullThicknessMappingState:
     WAITING = 1
@@ -92,6 +104,8 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
     state = SkullThicknessMappingState.WAITING
     progress = 0
     status = 'N/A'
+    thicknessScalarArray = None
+    airCellScalarArray = None
     modelPolyData = None
     topLayerPolyData = None
     hitPointList = None
@@ -117,12 +131,11 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         ScriptedLoadableModuleWidget.setup(self)
         self.layout.addLayout(self.build_input_tools())
         for s in [
-            self.build_configuration_tools(),
+            # self.build_configuration_tools(),
             self.build_execution_tools(),
             self.build_result_tools()
         ]: self.layout.addWidget(s)
         self.layout.addStretch()
-        slicer.app.layoutManager().setLayout(16)
         SkullThicknessMappingLogic.reset_view()
         self.update_all()
 
@@ -154,7 +167,7 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         return layout
 
     def build_configuration_tools(self):
-        self.configuration_tools = InterfaceTools.build_dropdown("Advanced Configuration Tools")
+        self.configuration_tools = InterfaceTools.build_dropdown("Advanced Configuration")
 
         self.qualitySpinBox = InterfaceTools.build_spin_box(0.25, 1.00, decimals=2, step=0.05)  # TODO add click
         self.qualitySpinBox.value = 1
@@ -177,7 +190,7 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         self.executeButton.setFixedHeight(36)
         self.executeButton.connect('clicked(bool)', self.click_execute)
         self.statusLabel = qt.QLabel('Status: ')
-        self.statusLabel.visible = False
+        self.statusLabel.enabled = False
         self.progressBar = qt.QProgressBar()
         self.progressBar.setFixedHeight(36)
         self.progressBar.minimum = 0
@@ -193,6 +206,7 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         box.addWidget(self.finishButton)
 
         layout = qt.QVBoxLayout(section)
+        layout.addWidget(self.build_configuration_tools())
         layout.addWidget(self.statusLabel)
         layout.addWidget(self.executeButton)
         layout.addLayout(box)
@@ -200,13 +214,10 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         return section
 
     def build_result_tools(self):
-        # TODO
         self.resultSection = qt.QGroupBox('Results')
-        self.resultSection.setVisible(False)
 
-        self.displayThicknessSelector = qt.QRadioButton("Thickness")
-        self.displayThicknessSelector.setChecked(True)
-        self.displayFirstAirCellSelector = qt.QRadioButton("Distance To First Air-cell")
+        self.displayThicknessSelector = InterfaceTools.build_radio_button('Thickness', self.click_result_radio, checked=True)
+        self.displayFirstAirCellSelector = InterfaceTools.build_radio_button('Distance To First Air-cell', self.click_result_radio)
 
         box = qt.QVBoxLayout(self.resultSection)
         box.addWidget(self.displayThicknessSelector)
@@ -222,14 +233,17 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
     def update_all(self):
         self.update_input_tools()
         self.update_execution_tools()
+        self.update_results()
 
     def update_input_tools(self):
         if self.volumeSelector.currentNode() is None:
             self.volumeSelector.enabled = True
-            self.infoLabel.text = ''
+            self.infoLabel.text = 'Dimensions: '
+            self.infoLabel.enabled = False
             self.state = SkullThicknessMappingState.WAITING
         elif self.state is SkullThicknessMappingState.WAITING and self.volumeSelector.currentNode() is not None:
             self.volumeSelector.enabled = True
+            self.infoLabel.enabled = True
             self.infoLabel.text = 'Dimensions: ' + str(self.volumeSelector.currentNode().GetImageData().GetDimensions())
             self.state = SkullThicknessMappingState.READY
         elif self.state is SkullThicknessMappingState.EXECUTING or self.state is SkullThicknessMappingState.FINISHED:
@@ -243,7 +257,7 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
             self.executeButton.enabled = False
             self.progressBar.visible = False
             self.progressBar.value = 0
-            self.statusLabel.visible = False
+            self.statusLabel.enabled = False
             self.statusLabel.text = 'Status: WAITING'
             self.finishButton.visible = False
         elif self.state is SkullThicknessMappingState.READY:
@@ -252,7 +266,7 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
             self.executeButton.enabled = True
             self.progressBar.visible = False
             self.progressBar.value = 0
-            self.statusLabel.visible = True
+            self.statusLabel.enabled = True
             self.statusLabel.text = 'Status: READY'
             self.finishButton.visible = False
         elif self.state is SkullThicknessMappingState.EXECUTING:
@@ -262,7 +276,7 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
             self.executeButton.enabled = False
             self.progressBar.visible = True
             self.progressBar.value = self.progress
-            self.statusLabel.visible = True
+            self.statusLabel.enabled = True
             self.statusLabel.text = 'Status: ' + str(self.status)
             self.finishButton.visible = False
         elif self.state is SkullThicknessMappingState.FINISHED:
@@ -271,6 +285,12 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
             self.progressBar.value = 100
             self.executeButton.visible = False
             self.finishButton.visible = True
+
+    def update_results(self):
+        if self.thicknessScalarArray is not None and self.airCellScalarArray is not None:
+            self.resultSection.enabled = True
+        else:
+            self.resultSection.enabled = False
 
     def update_status(self, text=None, progress=None):
         if text is not None:
@@ -283,36 +303,57 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
 
     # interface click events ----------------------------------------------------------------------
     def click_execute(self):
-        # TODO REMOVE testing
-        testingMethod = None
-        if testingMethod is True:
-            self.state = SkullThicknessMappingState.EXECUTING
-            slicer.mrmlScene.Clear()
-            path = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Sample/Shapes/sphere.obj"
-            node = slicer.util.loadModel(path, returnNode=True)[1]
-            self.modelPolyData = node.GetPolyData()
-            self.topLayerPolyData, self.hitPointList = SkullThicknessMappingLogic.rainfall_quad_cast(self.modelPolyData, [500, 500, 500], self.update_status, self.qualitySpinBox.value)
-            self.modelNode = SkullThicknessMappingLogic.build_model(self.topLayerPolyData, self.update_status)
-            SkullThicknessMappingLogic.ray_cast_color_thickness(self.modelPolyData, self.topLayerPolyData, self.hitPointList, self.modelNode, [500, 500, 500], self.update_status)
-            self.state = SkullThicknessMappingState.FINISHED
-        # TODO add param names
-
-        # TODO add catch
-        if self.state is not SkullThicknessMappingState.READY or testingMethod is True: return
+        # TODO add try and catch
+        if self.state is not SkullThicknessMappingState.READY: return
         self.state = SkullThicknessMappingState.EXECUTING
         self.update_status(text='Initializing execution..', progress=0)
         SkullThicknessMappingLogic.reset_view()
-        image = self.volumeSelector.currentNode()
-        self.modelPolyData = SkullThicknessMappingLogic.process_segmentation(image, self.update_status)
-        self.topLayerPolyData, self.hitPointList = SkullThicknessMappingLogic.rainfall_quad_cast(self.modelPolyData, image.GetImageData().GetDimensions(), self.update_status, self.qualitySpinBox.value)
-        self.modelNode = SkullThicknessMappingLogic.build_model(self.topLayerPolyData, self.update_status)
-        SkullThicknessMappingLogic.ray_cast_color_thickness(self.modelPolyData, self.topLayerPolyData, self.hitPointList, self.modelNode, image.GetImageData().GetDimensions(), self.update_status)
+        self.modelPolyData = SkullThicknessMappingLogic.process_segmentation(
+            image=self.volumeSelector.currentNode(),
+            update_status=self.update_status
+        )
+        self.topLayerPolyData, self.hitPointList = SkullThicknessMappingLogic.rainfall_quad_cast(
+            polydata=self.modelPolyData,
+            dimensions=self.volumeSelector.currentNode().GetImageData().GetDimensions(),
+            precision=self.qualitySpinBox.value,
+            update_status=self.update_status
+        )
+        self.modelNode = SkullThicknessMappingLogic.build_model(
+            polydata=self.topLayerPolyData,
+            update_status=self.update_status
+        )
+        self.thicknessScalarArray, self.airCellScalarArray = SkullThicknessMappingLogic.ray_cast_color_thickness(
+            polydata=self.modelPolyData,
+            top_layer_polydata=self.topLayerPolyData,
+            hit_point_list=self.hitPointList,
+            model_node=self.modelNode,
+            dimensions=self.volumeSelector.currentNode().GetImageData().GetDimensions(),
+            update_status=self.update_status
+        )
+        self.click_result_radio()
         self.state = SkullThicknessMappingState.FINISHED
         self.update_status(progress=100)
 
     def click_finish(self):
         self.state = SkullThicknessMappingState.WAITING
         self.update_all()
+
+    def click_result_radio(self):
+        if self.thicknessScalarArray is None or self.airCellScalarArray is None: return  # TODO add error message
+        scalarName = None
+        if self.displayThicknessSelector.isChecked():
+            scalarName = SkullThicknessMappingType.THICKNESS
+            self.topLayerPolyData.GetPointData().SetScalars(self.thicknessScalarArray)
+        elif self.displayFirstAirCellSelector.isChecked():
+            scalarName = SkullThicknessMappingType.AIR_CELL
+            self.topLayerPolyData.GetPointData().SetScalars(self.airCellScalarArray)
+        self.topLayerPolyData.Modified()
+        displayNode = self.modelNode.GetDisplayNode()
+        displayNode.SetActiveScalarName(scalarName)
+        displayNode.SetAndObserveColorNodeID('vtkMRMLColorTableNodeFileHotToColdRainbow.txt')
+        displayNode.ScalarVisibilityOn()
+        displayNode.SetScalarRangeFlag(slicer.vtkMRMLDisplayNode.UseColorNodeScalarRange)
+        SkullThicknessMappingLogic.reset_view()
 
 
 class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
@@ -323,6 +364,7 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
     @staticmethod
     def reset_view():
         m = slicer.app.layoutManager()
+        m.setLayout(16)
         w = m.threeDWidget(0)
         w.threeDView().lookFromViewAxis(2)
         c = w.threeDController()
@@ -412,19 +454,7 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         # writer.Update()
 
     @staticmethod
-    def build_model(polydata, update_status):
-        update_status(text="Rendering top layer...", progress=20)
-        modelNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLModelNode')
-        modelNode.SetAndObservePolyData(polydata)
-        modelNode.CreateDefaultDisplayNodes()
-        modelDisplayNode = modelNode.GetModelDisplayNode()
-        modelDisplayNode.SetFrontfaceCulling(0)
-        modelDisplayNode.SetBackfaceCulling(0)
-        update_status(text="Top layer rendered...", progress=40)
-        return modelNode
-
-    @staticmethod
-    def rainfall_quad_cast(polydata, dimensions, update_status, precision):
+    def rainfall_quad_cast(polydata, dimensions, precision, update_status):
         # set precision
         r, a, s = dimensions[0], dimensions[1], dimensions[2]
         preciseA, preciseS = int(dimensions[1]/precision), int(dimensions[2]/precision)
@@ -468,18 +498,39 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         return topLayerPolyData, [p for r in hitPointMatrix for p in r if p is not None]
 
     @staticmethod
-    def ray_cast_color_thickness(poly_data, top_layer_poly_data, hit_point_list, model_node, dimensions, update_status):
+    def build_model(polydata, update_status):
+        update_status(text="Rendering top layer...", progress=20)
+        modelNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLModelNode')
+        modelNode.SetAndObservePolyData(polydata)
+        modelNode.CreateDefaultDisplayNodes()
+        modelDisplayNode = modelNode.GetModelDisplayNode()
+        modelDisplayNode.SetFrontfaceCulling(0)
+        modelDisplayNode.SetBackfaceCulling(0)
+        update_status(text="Top layer rendered...", progress=40)
+        return modelNode
+
+    @staticmethod
+    def ray_cast_color_thickness(polydata, top_layer_polydata, hit_point_list, model_node, dimensions, update_status):
         update_status(text="Building intersection object tree...", progress=81)
         bspTree = vtk.vtkModifiedBSPTree()
-        bspTree.SetDataSet(poly_data)
+        bspTree.SetDataSet(polydata)
         bspTree.BuildLocator()
 
-        update_status(text="Calculating thickness (may take long)...", progress=82); startTime = time.time()
-        colours = vtk.vtkUnsignedCharArray()
-        colours.SetName('Thickness')
-        # colours.SetNumberOfComponents(3)
+        total = len(hit_point_list)
+        update_status(text="Calculating thickness 0/" + str(total) + " (may take long)...", progress=82); startTime = time.time()
+        skullThicknessScalarArray = vtk.vtkUnsignedCharArray()
+        skullThicknessScalarArray.SetName(SkullThicknessMappingType.THICKNESS)
+        # skullThicknessScalarArray.SetNumberOfComponents(3)
+        airCellScalarArray = vtk.vtkUnsignedCharArray()
+        airCellScalarArray.SetName(SkullThicknessMappingType.AIR_CELL)
+
+        def calculateDistance(point1, point2):
+            d = numpy.linalg.norm(numpy.array((point1[0], point1[1], point1[2])) - numpy.array((point2[0], point2[1], point2[2])))
+            d = d * 20
+            return d
+
         pointsOfIntersection, cellsOfIntersection = vtk.vtkPoints(), vtk.vtkIdList()
-        for hitPoint in hit_point_list:
+        for i, hitPoint in enumerate(hit_point_list):
             stretchFactor = dimensions[0]
             start = [hitPoint.point[0] + hitPoint.normal[0]*stretchFactor, hitPoint.point[1] + hitPoint.normal[1]*stretchFactor, hitPoint.point[2] + hitPoint.normal[2]*stretchFactor]
             end = [hitPoint.point[0] - hitPoint.normal[0]*stretchFactor, hitPoint.point[1] - hitPoint.normal[1]*stretchFactor, hitPoint.point[2] - hitPoint.normal[2]*stretchFactor]
@@ -489,27 +540,14 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
             res = bspTree.IntersectWithLine(start, end, 0, pointsOfIntersection, cellsOfIntersection)
             if pointsOfIntersection.GetNumberOfPoints() < 2: continue
             p1, p2 = pointsOfIntersection.GetPoint(0), pointsOfIntersection.GetPoint(pointsOfIntersection.GetNumberOfPoints()-1)
-            # p1, p2 = pointsOfIntersection.GetPoint(0), pointsOfIntersection.GetPoint(1)
-
-            thickness = numpy.linalg.norm(numpy.array((p1[0], p1[1], p1[2])) - numpy.array((p2[0], p2[1], p2[2])))
-            # thickness = numpy.abs(p1[0] - p2[1])
-            # thickness = numpy.random.randint(0, 255)
-            thickness = thickness*20
+            skullThicknessScalarArray.InsertTuple1(hitPoint.pid, calculateDistance(p1, p2))
             # print('Point ' + str(i) + '(' + str(pointsOfIntersection.GetNumberOfPoints()) + ' hits) thickness: ' + str(thickness))
-            colours.InsertTuple1(hitPoint.pid, thickness)
-        update_status(text="Rendering color map...", progress=98)
-
-        top_layer_poly_data.GetPointData().SetScalars(colours)
-        top_layer_poly_data.Modified()
-
-        displayNode = model_node.GetDisplayNode()
-        displayNode.SetActiveScalarName('Thickness')
-        displayNode.SetAndObserveColorNodeID('vtkMRMLColorTableNodeFileHotToColdRainbow.txt')
-        displayNode.ScalarVisibilityOn()
-        # displayNode.AutoScalarRangeOn()
-        displayNode.SetScalarRangeFlag(slicer.vtkMRMLDisplayNode.UseColorNodeScalarRange)
+            p1, p2 = pointsOfIntersection.GetPoint(0), pointsOfIntersection.GetPoint(1)
+            airCellScalarArray.InsertTuple1(hitPoint.pid, calculateDistance(p1, p2))
+            if i%500 == 0: update_status(text="Calculating thickness " + str(i) + '/' + str(total) + " (may take long)...", progress=82 + int(round(i/total*18.0)))
+        # update_status(text="Rendering color map...", progress=98)
         update_status(text="Finished thickness calculation in " + str("%.1f" % (time.time() - startTime)) + "s...", progress=100)
-        # TODO display on slice views
+        return skullThicknessScalarArray, airCellScalarArray
 
     # @staticmethod
     # def polydata_to_polygons(polydata, update_status):
