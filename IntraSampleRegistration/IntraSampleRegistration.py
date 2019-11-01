@@ -315,14 +315,15 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
             executed = len([p for p in self.volumePairs if p.status in [PairStatus.EXECUTING, PairStatus.COMPLETE]])
             total = len([p for p in self.volumePairs if p.status == PairStatus.PENDING]) + executed
             self.progressBar.setFormat(str(progress) + '% (' + str(executed) + ' of ' + str(total) + ')')
-
+            if progress is 100:
+                self.state = IntraSampleRegistrationState.FINISHED
         if current_registration_step is not None and self.state is not IntraSampleRegistrationState.FINISHED:
             registration = None
             if current_registration_step is RegistrationType.CUSTOM_ELASTIX: registration = 'Elastix'
             elif current_registration_step is RegistrationType.CUSTOM_BRAINS: registration = 'BRAINS'
             self.currentlyRunningLabel.text = 'Executing ' + registration + '...'
         elif self.state is IntraSampleRegistrationState.FINISHED:
-            self.currentlyRunningLabel.text = 'Executing complete...'
+            self.currentlyRunningLabel.text = 'Execution complete...'
 
         self.update_all()
         slicer.app.processEvents()
@@ -351,6 +352,7 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
         self.update_all()
 
     def click_execute(self):
+        self.update_progress(progress=0)
         self.state = IntraSampleRegistrationState.EXECUTION
         readyPairs = []
         # prep ready pairs
@@ -361,10 +363,7 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
             pair.disable()
         self.update_all()
         # execute
-        def on_complete():
-            self.state = IntraSampleRegistrationState.FINISHED
-            self.update_progress()
-        IntraSampleRegistrationLogic().execute_batch(self.elastixLogic, readyPairs, self.registrationSteps, self.update_progress, on_complete)
+        IntraSampleRegistrationLogic().execute_batch(self.elastixLogic, readyPairs, self.registrationSteps, self.update_progress)
 
     def click_cancel(self):
         DeepLearningPreProcessModule.DeepLearningPreProcessModuleLogic.attempt_abort_rigid_registration(self.elastixLogic)
@@ -383,7 +382,7 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
 
 class IntraSampleRegistrationLogic(ScriptedLoadableModuleLogic):
     @staticmethod
-    def execute_batch(elastix, pairs, registration_steps, update_progress, finish):
+    def execute_batch(elastix, pairs, registration_steps, update_progress):
         for pair in pairs:
             pair.status = PairStatus.EXECUTING
             outputNode = pair.moving.currentNode()
@@ -395,7 +394,9 @@ class IntraSampleRegistrationLogic(ScriptedLoadableModuleLogic):
                         atlas_node=pair.fixed.currentNode(),
                         moving_node=outputNode,
                         mask_node=None,
-                        log_callback=update_progress)
+                        log_callback=update_progress
+                    )
+                    update_progress(progress=100)
                 elif registration is RegistrationType.CUSTOM_BRAINS:
                     outputNode = IntraSampleRegistrationLogic.apply_brains_rigid_registration(
                         pair=pair,
@@ -405,7 +406,7 @@ class IntraSampleRegistrationLogic(ScriptedLoadableModuleLogic):
                     update_progress(progress=100)
             pair.moving.setCurrentNode(outputNode)
             pair.status = PairStatus.COMPLETE
-        finish()
+            update_progress()
 
     @staticmethod
     def apply_brains_rigid_registration(moving_node, pair, log_callback):
@@ -430,10 +431,10 @@ class IntraSampleRegistrationLogic(ScriptedLoadableModuleLogic):
             'relaxationFactor'      : 0.5,
             'translationScale'      : 1.0  # aka transform scale
         }, wait_for_completion=True)
-        print('TRANSFORM GENERATED: ' + str(transform_node))
+        print('TRANSFORM GENERATED: '); print(transform_node)
         moving_node.ApplyTransform(transform_node.GetTransformToParent())
         moving_node.HardenTransform()
-        moving_node.SetName(moving_node.GetName() + " +BRAINS")
+        moving_node.SetName(moving_node.GetName() + "_BRAINS")
         return moving_node
 
 

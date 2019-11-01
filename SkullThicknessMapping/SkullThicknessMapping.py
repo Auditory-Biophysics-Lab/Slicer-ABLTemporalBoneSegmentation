@@ -517,7 +517,7 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         bspTree.BuildLocator()
 
         total = len(hit_point_list)
-        update_status(text="Calculating thickness 0/" + str(total) + " (may take long)...", progress=82); startTime = time.time()
+        update_status(text="Calculating thickness (may take long)...", progress=82); startTime = time.time()
         skullThicknessScalarArray = vtk.vtkUnsignedCharArray()
         skullThicknessScalarArray.SetName(SkullThicknessMappingType.THICKNESS)
         # skullThicknessScalarArray.SetNumberOfComponents(3)
@@ -544,7 +544,7 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
             # print('Point ' + str(i) + '(' + str(pointsOfIntersection.GetNumberOfPoints()) + ' hits) thickness: ' + str(thickness))
             p1, p2 = pointsOfIntersection.GetPoint(0), pointsOfIntersection.GetPoint(1)
             airCellScalarArray.InsertTuple1(hitPoint.pid, calculateDistance(p1, p2))
-            if i%500 == 0: update_status(text="Calculating thickness " + str(i) + '/' + str(total) + " (may take long)...", progress=82 + int(round((i*1.0/total*1.0)*18.0)))
+            if i%500 == 0: update_status(text="Calculating thickness (may take long)...", progress=82 + int(round((i*1.0/total*1.0)*18.0)))
         # update_status(text="Rendering color map...", progress=98)
         update_status(text="Finished thickness calculation in " + str("%.1f" % (time.time() - startTime)) + "s...", progress=100)
         return skullThicknessScalarArray, airCellScalarArray

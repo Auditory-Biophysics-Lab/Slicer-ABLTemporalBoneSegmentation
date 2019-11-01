@@ -684,7 +684,7 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
         if copy:
             outputVolumeNode = slicer.vtkMRMLScalarVolumeNode()
             outputVolumeNode.Copy(moving_node)
-            outputVolumeNode.SetName(moving_node.GetName() + " +Elastix")
+            outputVolumeNode.SetName(moving_node.GetName() + "_Elastix")
         transform_node = slicer.vtkMRMLTransformNode()
         transform_node.SetName(moving_node.GetName() + ' Elastix transform')
         slicer.mrmlScene.AddNode(transform_node)
@@ -700,10 +700,10 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
             fixedVolumeMaskNode=mask_node,
             movingVolumeMaskNode=mask_node
         )
-        print('TRANSFORM GENERATED: ' + str(transform_node))
+        print('TRANSFORM GENERATED: '); print(transform_node)
         outputVolumeNode.ApplyTransform(transform_node.GetTransformToParent())
         outputVolumeNode.HardenTransform()
-        outputVolumeNode.SetName(moving_node.GetName() + " +Elastix")
+        outputVolumeNode.SetName(moving_node.GetName() + "_Elastix")
         slicer.mrmlScene.AddNode(outputVolumeNode)
         return outputVolumeNode
 
