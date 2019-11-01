@@ -95,7 +95,7 @@ class SkullThicknessMapping(ScriptedLoadableModule):
         self.parent.categories = ["Otolaryngology"]
         self.parent.dependencies = []
         self.parent.contributors = ["Evan Simpson (Western University)"]
-        self.parent.helpText = "" + self.getDefaultModuleDocumentationLink()
+        self.parent.helpText = "Version 1.0-2019.11.1\n" + self.getDefaultModuleDocumentationLink()
         self.parent.acknowledgementText = "This module was originally developed by Evan Simpson at The University of Western Ontario in the HML/SKA Auditory Biophysics Lab."
 
 
@@ -548,6 +548,10 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         # update_status(text="Rendering color map...", progress=98)
         update_status(text="Finished thickness calculation in " + str("%.1f" % (time.time() - startTime)) + "s...", progress=100)
         return skullThicknessScalarArray, airCellScalarArray
+
+    @staticmethod
+    def add_scalar_colour_bar():
+        pass
 
     # @staticmethod
     # def polydata_to_polygons(polydata, update_status):

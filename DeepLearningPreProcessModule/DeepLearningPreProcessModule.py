@@ -41,7 +41,7 @@ class DeepLearningPreProcessModule(ScriptedLoadableModule):
         self.parent.categories = ["Otolaryngology"]
         self.parent.dependencies = []
         self.parent.contributors = ["Luke Helpard (Western University) and Evan Simpson (Western University)"]
-        self.parent.helpText = "" + self.getDefaultModuleDocumentationLink()
+        self.parent.helpText = "Version 1.0-2019.11.1\n" + self.getDefaultModuleDocumentationLink()
         self.parent.acknowledgementText = "This module was originally developed by Evan Simpson at The University of Western Ontario in the HML/SKA Auditory Biophysics Lab."
 
 
@@ -526,7 +526,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
                 self.intermediateNode = slicer.vtkMRMLScalarVolumeNode()
                 slicer.mrmlScene.AddNode(self.intermediateNode)
             self.intermediateNode.Copy(self.inputSelector.currentNode())
-            self.intermediateNode.SetName(self.movingSelector.currentNode().GetName() + " +Fiducial")
+            self.intermediateNode.SetName(self.movingSelector.currentNode().GetName() + "_Fiducial")
             self.intermediateNode = DeepLearningPreProcessModuleLogic().apply_fiducial_registration(self.intermediateNode, self.atlasFiducialNode, self.inputFiducialNode)
             self.update_fiducial_buttons()
         self.process_transform(function, corresponding_button=self.fiducialApplyButton)
@@ -639,7 +639,7 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
     def pull_node_resample_push(node, spacing_in_um, interpolation):
         image = sitku.PullVolumeFromSlicer(node.GetID())
         resampledImage = DeepLearningPreProcessModuleLogic().resample_image(image, spacing_in_um, interpolation)
-        resampledNode = sitku.PushVolumeToSlicer(resampledImage, None, node.GetName() + " +Resampled" + str(spacing_in_um) + '', "vtkMRMLScalarVolumeNode")
+        resampledNode = sitku.PushVolumeToSlicer(resampledImage, None, node.GetName() + "_Resampled" + str(spacing_in_um) + '', "vtkMRMLScalarVolumeNode")
         return resampledNode
 
     @staticmethod
@@ -658,16 +658,17 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
         trimmed_atlas_fiducial_node.SetLocked(True)
         for f in range(0, trimmed_atlas_fiducial_node.GetNumberOfFiducials()): trimmed_atlas_fiducial_node.SetNthFiducialVisibility(f, False)
         # process
-        transform = slicer.vtkMRMLTransformNode()
-        slicer.mrmlScene.AddNode(transform)
+        transform_node = slicer.vtkMRMLTransformNode()
+        transform_node.SetName(moving_node.GetName() + ' Fiducial transform')
+        slicer.mrmlScene.AddNode(transform_node)
         output = slicer.cli.run(slicer.modules.fiducialregistration, None, wait_for_completion=True, parameters={
             'fixedLandmarks'   : trimmed_atlas_fiducial_node.GetID(),
             'movingLandmarks'  : input_fiducial_node.GetID(),
             'transformType'    : 'Rigid',
-            "saveTransform"    : transform.GetID()
+            "saveTransform"    : transform_node.GetID()
         })
         print(output)
-        moving_node.ApplyTransform(transform.GetTransformToParent())
+        moving_node.ApplyTransform(transform_node.GetTransformToParent())
         # clean up
         # slicer.mrmlScene.RemoveNode(transform)
         slicer.mrmlScene.RemoveNode(trimmed_atlas_fiducial_node)

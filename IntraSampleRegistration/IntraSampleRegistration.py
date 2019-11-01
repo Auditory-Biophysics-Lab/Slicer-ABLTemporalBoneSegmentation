@@ -86,7 +86,7 @@ class IntraSampleRegistration(ScriptedLoadableModule):
         self.parent.categories = ["Otolaryngology"]
         self.parent.dependencies = []
         self.parent.contributors = ["HML/SKA Auditory Biophysics Lab at The University of Western Ontario"]
-        self.parent.helpText = "" + self.getDefaultModuleDocumentationLink()
+        self.parent.helpText = "Version 1.0-2019.11.1\n" + self.getDefaultModuleDocumentationLink()
         self.parent.acknowledgementText = "This module was originally developed by Evan Simpson in the HML/SKA Auditory Biophysics Lab (Western University)."
 
 
@@ -419,7 +419,7 @@ class IntraSampleRegistrationLogic(ScriptedLoadableModuleLogic):
             'movingVolume': moving_node.GetID(),
             'outputTransform': transform_node.GetID(),
             'transformType': 'Rigid',
-            'samplingPercentage'    : 1.0,
+            'samplingPercentage'    : 0.01,
             'initialTransformMode'  : 'off',
             'maskProcessingMode'    : 'NOMASK',  # TODO double check Masking = NOMASK
             'costMetric'            : 'NC',
