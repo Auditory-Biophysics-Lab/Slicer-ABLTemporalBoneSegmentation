@@ -102,10 +102,9 @@ class SkullThicknessMapping(ScriptedLoadableModule):
 class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
     # Data members --------------
     state = SkullThicknessMappingState.WAITING
-    progress = 0
-    status = 'N/A'
-    thicknessScalarArray = None
-    airCellScalarArray = None
+    status, progress = 'N/A', 0
+    thicknessScalarArray, airCellScalarArray = None, None
+    thicknessColourNode, airCellColourNode = None, None
     modelPolyData = None
     topLayerPolyData = None
     hitPointList = None
@@ -123,6 +122,7 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
     resultSection = None
     displayThicknessSelector = None
     displayFirstAirCellSelector = None
+    displayScalarBarCheckbox = None
 
     def __init__(self, parent=None):
         ScriptedLoadableModuleWidget.__init__(self, parent)
@@ -140,9 +140,9 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         self.update_all()
 
         # TODO REMOVE TESTING
-        slicer.mrmlScene.Clear()
-        path = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Sample/Images/1601L.img"
-        node = slicer.util.loadVolume(path, returnNode=True)[1]
+        # slicer.mrmlScene.Clear()
+        # path = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Sample/Images/1601L.img"
+        # node = slicer.util.loadVolume(path, returnNode=True)[1]
         # TODO REMOVE TESTING
 
     # interface build ------------------------------------------------------------------------------
@@ -214,18 +214,23 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         return section
 
     def build_result_tools(self):
-        self.resultSection = qt.QGroupBox('Results')
+        self.resultSection = InterfaceTools.build_group('Results')
 
         self.displayThicknessSelector = InterfaceTools.build_radio_button('Thickness', self.click_result_radio, checked=True)
         self.displayFirstAirCellSelector = InterfaceTools.build_radio_button('Distance To First Air-cell', self.click_result_radio)
 
-        box = qt.QVBoxLayout(self.resultSection)
+        box = qt.QVBoxLayout()
         box.addWidget(self.displayThicknessSelector)
         box.addWidget(self.displayFirstAirCellSelector)
-        box.setMargin(10)
+
+        self.displayScalarBarCheckbox = qt.QCheckBox()
+        self.displayScalarBarCheckbox.checked = True
+        self.displayScalarBarCheckbox.connect("stateChanged(int)", self.click_toggle_scalar_bar)
 
         layout = qt.QFormLayout(self.resultSection)
-        layout.addRow("Display: ", box)
+        layout.addRow("Map Display: ", box)
+        layout.addRow(qt.QLayout())
+        layout.addRow("Display Scalar Bar: ", self.displayScalarBarCheckbox)
         layout.setMargin(10)
         return self.resultSection
 
@@ -289,8 +294,7 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
     def update_results(self):
         if self.thicknessScalarArray is not None and self.airCellScalarArray is not None:
             self.resultSection.enabled = True
-        else:
-            self.resultSection.enabled = False
+        else: self.resultSection.enabled = False
 
     def update_status(self, text=None, progress=None):
         if text is not None:
@@ -322,6 +326,7 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
             polydata=self.topLayerPolyData,
             update_status=self.update_status
         )
+        if self.thicknessColourNode is None: self.thicknessColourNode, self.airCellColourNode = SkullThicknessMappingLogic.load_color_tables()
         self.thicknessScalarArray, self.airCellScalarArray = SkullThicknessMappingLogic.ray_cast_color_thickness(
             polydata=self.modelPolyData,
             top_layer_polydata=self.topLayerPolyData,
@@ -340,20 +345,34 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
 
     def click_result_radio(self):
         if self.thicknessScalarArray is None or self.airCellScalarArray is None: return  # TODO add error message
-        scalarName = None
+        scalar, scalarName, colourNodeId = None, None, None
         if self.displayThicknessSelector.isChecked():
+            scalar = self.thicknessScalarArray
             scalarName = SkullThicknessMappingType.THICKNESS
-            self.topLayerPolyData.GetPointData().SetScalars(self.thicknessScalarArray)
+            colourNodeId = self.thicknessColourNode.GetID()
         elif self.displayFirstAirCellSelector.isChecked():
+            scalar = self.airCellScalarArray
             scalarName = SkullThicknessMappingType.AIR_CELL
-            self.topLayerPolyData.GetPointData().SetScalars(self.airCellScalarArray)
+            colourNodeId = self.airCellColourNode.GetID()
+        # update poly data
+        self.topLayerPolyData.GetPointData().SetScalars(scalar)
         self.topLayerPolyData.Modified()
+        # update display node
         displayNode = self.modelNode.GetDisplayNode()
         displayNode.SetActiveScalarName(scalarName)
-        displayNode.SetAndObserveColorNodeID('vtkMRMLColorTableNodeFileHotToColdRainbow.txt')
+        displayNode.SetAndObserveColorNodeID(colourNodeId)
         displayNode.ScalarVisibilityOn()
         displayNode.SetScalarRangeFlag(slicer.vtkMRMLDisplayNode.UseColorNodeScalarRange)
+        # update scalar bar
+        SkullThicknessMappingLogic.set_scalar_colour_bar_state(1, colourNodeId)
+        # reset view
         SkullThicknessMappingLogic.reset_view()
+
+    def click_toggle_scalar_bar(self, state):
+        if state is 0: SkullThicknessMappingLogic.set_scalar_colour_bar_state(0)
+        elif state is 2:
+            if self.displayThicknessSelector.isChecked(): SkullThicknessMappingLogic.set_scalar_colour_bar_state(1, self.thicknessColourNode)
+            elif self.displayFirstAirCellSelector.isChecked(): SkullThicknessMappingLogic.set_scalar_colour_bar_state(1, self.airCellColourNode)
 
 
 class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
@@ -510,6 +529,14 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         return modelNode
 
     @staticmethod
+    def load_color_tables():
+        path = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Tables/ThicknessGradient.txt"
+        thicknessTable = slicer.util.loadColorTable(path, returnNode=True)[1]
+        path = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Tables/AirCellGradient.txt"
+        airCellTable = slicer.util.loadColorTable(path, returnNode=True)[1]
+        return thicknessTable, airCellTable
+
+    @staticmethod
     def ray_cast_color_thickness(polydata, top_layer_polydata, hit_point_list, model_node, dimensions, update_status):
         update_status(text="Building intersection object tree...", progress=81)
         bspTree = vtk.vtkModifiedBSPTree()
@@ -526,7 +553,7 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
 
         def calculateDistance(point1, point2):
             d = numpy.linalg.norm(numpy.array((point1[0], point1[1], point1[2])) - numpy.array((point2[0], point2[1], point2[2])))
-            d = d * 20
+            # d = d * 20
             return d
 
         pointsOfIntersection, cellsOfIntersection = vtk.vtkPoints(), vtk.vtkIdList()
@@ -550,8 +577,13 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         return skullThicknessScalarArray, airCellScalarArray
 
     @staticmethod
-    def add_scalar_colour_bar():
-        pass
+    def set_scalar_colour_bar_state(state, color_node_id=None):
+        colorWidget = slicer.modules.colors.widgetRepresentation()
+        ctkScalarBarWidget = slicer.util.findChildren(colorWidget, name='VTKScalarBar')[0]
+        ctkScalarBarWidget.setDisplay(state)
+        if state is 0 or color_node_id is None: return
+        activeColorNodeSelector = slicer.util.findChildren(colorWidget, 'ColorTableComboBox')[0]
+        activeColorNodeSelector.setCurrentNodeID(color_node_id)
 
     # @staticmethod
     # def polydata_to_polygons(polydata, update_status):

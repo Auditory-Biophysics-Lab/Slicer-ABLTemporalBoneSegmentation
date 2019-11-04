@@ -6,8 +6,6 @@
   <component name="ChangeListManager">
     <list default="true" id="f08bb156-2c28-4f65-9fa3-faa143f298d2" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/DeepLearningPreProcessModule/DeepLearningPreProcessModule.py" beforeDir="false" afterPath="$PROJECT_DIR$/DeepLearningPreProcessModule/DeepLearningPreProcessModule.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/IntraSampleRegistration/IntraSampleRegistration.py" beforeDir="false" afterPath="$PROJECT_DIR$/IntraSampleRegistration/IntraSampleRegistration.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/SkullThicknessMapping/SkullThicknessMapping.py" beforeDir="false" afterPath="$PROJECT_DIR$/SkullThicknessMapping/SkullThicknessMapping.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -144,7 +142,7 @@
       <workItem from="1568654698347" duration="60921000" />
       <workItem from="1571422954948" duration="26000" />
       <workItem from="1571424220237" duration="27710000" />
-      <workItem from="1572025807984" duration="43189000" />
+      <workItem from="1572025807984" duration="50831000" />
     </task>
     <servers />
   </component>
