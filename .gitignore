@@ -125,3 +125,6 @@ SkullThicknessMapping/Resources/Sample/Images/1621R.hdr
 SkullThicknessMapping/Resources/Sample/Images/1601L.img
 SkullThicknessMapping/Resources/Sample/STL/1601L_rest.stl
 SkullThicknessMapping/Resources/Sample/STL/1601L_outer.stl
+
+# Idea
+.idea/*
