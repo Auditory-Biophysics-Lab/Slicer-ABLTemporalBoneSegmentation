@@ -49,20 +49,29 @@ class InterfaceTools:
         return s
 
     @staticmethod
-    def build_spin_box(minimum, maximum, click=None, decimals=0, step=1.0):
+    def build_spin_box(minimum, maximum, click=None, decimals=0, step=1.0, initial=0.0, width=None):
         box = qt.QDoubleSpinBox()
         box.setMinimum(minimum)
         box.setMaximum(maximum)
         box.setSingleStep(step)
         box.setDecimals(decimals)
-        if click is not None: box.connect('valueChanged(int)', click)
+        box.setValue(initial)
+        if width is not None: box.setFixedWidth(width)
+        if click is not None: box.connect('valueChanged(double)', click)
         return box
 
     @staticmethod
-    def build_radio_button(title, on_click, checked=False, tooltip=None):
+    def build_radio_button(title, on_click, checked=False, tooltip=None, width=None):
         b = qt.QRadioButton(title)
         b.connect('clicked(bool)', on_click)
         b.setChecked(checked)
+        if width is not None: b.setFixedWidth(width)
+        return b
+
+    @staticmethod
+    def build_label(text, width=None):
+        b = qt.QLabel(text)
+        if width is not None: b.setFixedWidth(width)
         return b
 
 
@@ -76,6 +85,15 @@ class SkullThicknessMappingState:
     READY = 2
     EXECUTING = 3
     FINISHED = 4
+
+
+class RayDirection:
+    R = 'R'
+    L = 'L'
+    A = 'A'
+    P = 'P'
+    S = 'S'
+    I = 'I'
 
 
 class HitPoint:
@@ -110,11 +128,17 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
     hitPointList = None
     modelNode = None
 
+    # Configuration preferences
+    CONFIG_precision = 1.0
+    CONFIG_rayDirection = 'L'
+    CONFIG_regionOfInterest = [-50, 20]
+    CONFIG_minAirCell = 4.0
+    CONFIG_minSkullThickness = 8.7
+
     # UI members (in order of appearance) --------------
     infoLabel = None
     volumeSelector = None
     configuration_tools = None
-    qualitySpinBox = None
     statusLabel = None
     executeButton = None
     progressBar = None
@@ -130,19 +154,16 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
     def setup(self):
         ScriptedLoadableModuleWidget.setup(self)
         self.layout.addLayout(self.build_input_tools())
-        for s in [
-            # self.build_configuration_tools(),
-            self.build_execution_tools(),
-            self.build_result_tools()
-        ]: self.layout.addWidget(s)
+        self.layout.addLayout(self.build_execution_tools())
+        self.layout.addWidget(self.build_result_tools())
         self.layout.addStretch()
-        SkullThicknessMappingLogic.reset_view()
+        SkullThicknessMappingLogic.reset_view(RayDirection.L)
         self.update_all()
 
         # TODO REMOVE TESTING
-        # slicer.mrmlScene.Clear()
-        # path = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Sample/Images/1601L.img"
-        # node = slicer.util.loadVolume(path, returnNode=True)[1]
+        slicer.mrmlScene.Clear()
+        path = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Sample/Images/1601L.img"
+        node = slicer.util.loadVolume(path, returnNode=True)[1]
         # TODO REMOVE TESTING
 
     # interface build ------------------------------------------------------------------------------
@@ -154,7 +175,7 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         fitAllButton.setIcon(qt.QIcon(icon))
         fitAllButton.setFixedSize(50, 24)
         fitAllButton.setToolTip("Reset 3D view.")
-        fitAllButton.connect('clicked(bool)', SkullThicknessMappingLogic.reset_view)
+        fitAllButton.connect('clicked(bool)', lambda: SkullThicknessMappingLogic.reset_view(self.CONFIG_rayDirection))
         box = qt.QHBoxLayout()
         box.addWidget(self.volumeSelector)
         box.addWidget(fitAllButton)
@@ -168,22 +189,77 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
 
     def build_configuration_tools(self):
         self.configuration_tools = InterfaceTools.build_dropdown("Advanced Configuration")
-
-        self.qualitySpinBox = InterfaceTools.build_spin_box(0.25, 1.00, decimals=2, step=0.05)  # TODO add click
-        self.qualitySpinBox.value = 1
-        self.qualitySpinBox.setSizePolicy(qt.QSizePolicy.Minimum, qt.QSizePolicy.Minimum)
-        box = qt.QHBoxLayout()
-        box.addStretch(10)
-        box.addWidget(self.qualitySpinBox)
-        box.addWidget(qt.QLabel('  polygon/dimensional-unit'))
-
         layout = qt.QFormLayout(self.configuration_tools)
+
+        # ray direction
+        def setDir(d):
+            self.CONFIG_rayDirection = d
+            # SkullThicknessMappingLogic.reset_view(d)
+        box = qt.QVBoxLayout()
+        row1 = qt.QHBoxLayout()
+        row1.addStretch()
+        row1.addWidget(InterfaceTools.build_radio_button(RayDirection.R, lambda: setDir(RayDirection.R), width=50))
+        row1.addWidget(InterfaceTools.build_radio_button(RayDirection.A, lambda: setDir(RayDirection.A), width=50))
+        row1.addWidget(InterfaceTools.build_radio_button(RayDirection.S, lambda: setDir(RayDirection.S), width=50))
+        row2 = qt.QHBoxLayout()
+        row2.addStretch()
+        row2.addWidget(InterfaceTools.build_radio_button(RayDirection.L, lambda: setDir(RayDirection.L), width=50, checked=True))
+        row2.addWidget(InterfaceTools.build_radio_button(RayDirection.P, lambda: setDir(RayDirection.P), width=50))
+        row2.addWidget(InterfaceTools.build_radio_button(RayDirection.I, lambda: setDir(RayDirection.I), width=50))
+        box.addLayout(row1)
+        box.addLayout(row2)
+        layout.addRow("Ray-cast direction: ", box)
+
+        # region of interest
+        def setUpperBound(value): self.CONFIG_regionOfInterest[0] = value
+        def setLowerBound(value): self.CONFIG_regionOfInterest[1] = value
+        box = qt.QVBoxLayout()
+        row1 = qt.QHBoxLayout()
+        row1.addStretch()
+        row1.addWidget(qt.QLabel('Upper bound'))
+        row1.addWidget(InterfaceTools.build_spin_box(-10000, 10000, decimals=0, step=1.0, initial=-50, click=setUpperBound, width=80))
+        row1.addWidget(InterfaceTools.build_label('units', 30))
+        row2 = qt.QHBoxLayout()
+        row2.addStretch()
+        row2.addWidget(qt.QLabel('Lower bound'))
+        row2.addWidget(InterfaceTools.build_spin_box(-10000, 10000, decimals=0, step=1.0, initial=20, click=setLowerBound, width=80))
+        row2.addWidget(InterfaceTools.build_label('units', 30))
+        box.addLayout(row1)
+        box.addLayout(row2)
+        layout.addRow("Ray-cast region of interest: ", box)
+
+        # degrees of interest
+        # TODO
+
+        # min/max
+        # def setMinAirCell(value): self.CONFIG_minAirCell = value
+        # def setMinSkullThickness(value): self.CONFIG_minSkullThickness = value
+        # box = qt.QHBoxLayout()
+        # box.addStretch()
+        # box.addWidget(InterfaceTools.build_spin_box(0.0, 1000.0, decimals=2, step=0.1, initial=8.7, click=setMinSkullThickness, width=80))
+        # box.addWidget(InterfaceTools.build_label('mm', 30))
+        # layout.addRow("Minimum thickness depth: ", box)
+        # box = qt.QHBoxLayout()
+        # box.addStretch()
+        # box.addWidget(InterfaceTools.build_spin_box(0.0, 1000.0, decimals=2, step=0.1, initial=4.0, click=setMinAirCell, width=80))
+        # box.addWidget(InterfaceTools.build_label('mm', 30))
+        # layout.addRow("Minimum air cell depth: ", box)
+
+        # quality
+        def setQuality(value): self.CONFIG_precision = value
+        box = qt.QHBoxLayout()
+        box.addStretch()
+        box.addWidget(InterfaceTools.build_radio_button('High', lambda: setQuality(0.25)))
+        box.addWidget(InterfaceTools.build_radio_button('Medium', lambda: setQuality(0.75)))
+        box.addWidget(InterfaceTools.build_radio_button('Low', lambda: setQuality(1.0), checked=True))
+        box.addWidget(InterfaceTools.build_radio_button('Very Low', lambda: setQuality(2.0)))
         layout.addRow("Render quality: ", box)
+
         layout.setMargin(10)
         return self.configuration_tools
 
     def build_execution_tools(self):
-        section = InterfaceTools.build_group('Execution')
+        # section = InterfaceTools.build_group('Execution')
         # section = InterfaceTools.build_dropdown('Execution')
 
         self.executeButton = qt.QPushButton('Execute')
@@ -205,13 +281,13 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         box.addWidget(self.progressBar)
         box.addWidget(self.finishButton)
 
-        layout = qt.QVBoxLayout(section)
+        layout = qt.QVBoxLayout()
         layout.addWidget(self.build_configuration_tools())
         layout.addWidget(self.statusLabel)
         layout.addWidget(self.executeButton)
         layout.addLayout(box)
         layout.setMargin(10)
-        return section
+        return layout
 
     def build_result_tools(self):
         self.resultSection = InterfaceTools.build_group('Results')
@@ -251,6 +327,7 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
             self.infoLabel.enabled = True
             self.infoLabel.text = 'Dimensions: ' + str(self.volumeSelector.currentNode().GetImageData().GetDimensions())
             self.state = SkullThicknessMappingState.READY
+            # self.modelPolyData = SkullThicknessMappingLogic.process_segmentation(image=self.volumeSelector.currentNode(), update_status=self.update_status)
         elif self.state is SkullThicknessMappingState.EXECUTING or self.state is SkullThicknessMappingState.FINISHED:
             self.volumeSelector.enabled = False
 
@@ -285,7 +362,7 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
             self.statusLabel.text = 'Status: ' + str(self.status)
             self.finishButton.visible = False
         elif self.state is SkullThicknessMappingState.FINISHED:
-            self.configuration_tools.enabled = True
+            self.configuration_tools.enabled = False
             self.configuration_tools.collapsed = True
             self.progressBar.value = 100
             self.executeButton.visible = False
@@ -311,7 +388,7 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         if self.state is not SkullThicknessMappingState.READY: return
         self.state = SkullThicknessMappingState.EXECUTING
         self.update_status(text='Initializing execution..', progress=0)
-        SkullThicknessMappingLogic.reset_view()
+        SkullThicknessMappingLogic.reset_view(self.CONFIG_rayDirection)
         self.modelPolyData = SkullThicknessMappingLogic.process_segmentation(
             image=self.volumeSelector.currentNode(),
             update_status=self.update_status
@@ -319,7 +396,9 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         self.topLayerPolyData, self.hitPointList = SkullThicknessMappingLogic.rainfall_quad_cast(
             polydata=self.modelPolyData,
             dimensions=self.volumeSelector.currentNode().GetImageData().GetDimensions(),
-            precision=self.qualitySpinBox.value,
+            ray_direction=self.CONFIG_rayDirection,
+            precision=self.CONFIG_precision,
+            region_of_interest=self.CONFIG_regionOfInterest,
             update_status=self.update_status
         )
         self.modelNode = SkullThicknessMappingLogic.build_model(
@@ -329,9 +408,8 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         if self.thicknessColourNode is None: self.thicknessColourNode, self.airCellColourNode = SkullThicknessMappingLogic.load_color_tables()
         self.thicknessScalarArray, self.airCellScalarArray = SkullThicknessMappingLogic.ray_cast_color_thickness(
             polydata=self.modelPolyData,
-            top_layer_polydata=self.topLayerPolyData,
             hit_point_list=self.hitPointList,
-            model_node=self.modelNode,
+            ray_direction=self.CONFIG_rayDirection,
             dimensions=self.volumeSelector.currentNode().GetImageData().GetDimensions(),
             update_status=self.update_status
         )
@@ -366,7 +444,7 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         # update scalar bar
         SkullThicknessMappingLogic.set_scalar_colour_bar_state(1, colourNodeId)
         # reset view
-        SkullThicknessMappingLogic.reset_view()
+        SkullThicknessMappingLogic.reset_view(self.CONFIG_rayDirection)
 
     def click_toggle_scalar_bar(self, state):
         if state is 0: SkullThicknessMappingLogic.set_scalar_colour_bar_state(0)
@@ -381,11 +459,18 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         return slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + '/Resources/Sample/'
 
     @staticmethod
-    def reset_view():
+    def reset_view(cast_direction):
         m = slicer.app.layoutManager()
         m.setLayout(16)
         w = m.threeDWidget(0)
-        w.threeDView().lookFromViewAxis(2)
+        axis = None
+        if cast_direction is RayDirection.R: axis = 1
+        elif cast_direction is RayDirection.L: axis = 2
+        elif cast_direction is RayDirection.A: axis = 3
+        elif cast_direction is RayDirection.P: axis = 4
+        elif cast_direction is RayDirection.S: axis = 5
+        elif cast_direction is RayDirection.I: axis = 6
+        w.threeDView().lookFromViewAxis(axis)
         c = w.threeDController()
         for i in xrange(12): c.zoomIn()
 
@@ -473,10 +558,31 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         # writer.Update()
 
     @staticmethod
-    def rainfall_quad_cast(polydata, dimensions, precision, update_status):
-        # set precision
-        r, a, s = dimensions[0], dimensions[1], dimensions[2]
-        preciseA, preciseS = int(dimensions[1]/precision), int(dimensions[2]/precision)
+    def rainfall_quad_cast(polydata, dimensions, ray_direction, precision, region_of_interest, update_status):
+        # configure ray direction
+        dimensions = dimensions[::-1]
+        negated = 1 if ray_direction in [RayDirection.R, RayDirection.A, RayDirection.S] else -1
+        castIndex = None
+        if ray_direction is RayDirection.R or ray_direction is RayDirection.L: castIndex = 0
+        elif ray_direction is RayDirection.A or ray_direction is RayDirection.P: castIndex = 1
+        elif ray_direction is RayDirection.S or ray_direction is RayDirection.I: castIndex = 2
+        castVector = [0.0, 0.0, 0.0]; castVector[castIndex] = 1.0 * negated
+        castPlaneIndices = [0, 1, 2]; castPlaneIndices.remove(castIndex)
+        preciseHorizontalBounds, preciseVerticalBounds = int(dimensions[castPlaneIndices[0]] / precision), int(dimensions[castPlaneIndices[1]] / precision)
+        def rayBuilder(i, j):
+            start = [None, None, None]
+            start[castIndex] = dimensions[castIndex] * negated
+            start[castPlaneIndices[0]] = -dimensions[castPlaneIndices[0]]/2.0 + i*precision
+            start[castPlaneIndices[1]] = -dimensions[castPlaneIndices[1]]/2.0 + j*precision
+            end = start[:]; end[castIndex] = end[castIndex] * -1.0
+            return start, end
+
+        print(negated)
+        print(castIndex)
+        print(castVector)
+        print(castPlaneIndices)
+        print(preciseVerticalBounds)
+        print(preciseHorizontalBounds)
 
         # build search tree
         update_status(text="Building intersection object tree...", progress=41)
@@ -485,15 +591,16 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         bspTree.BuildLocator()
 
         # cast rays
-        update_status(text="Casting " + str(preciseA*preciseS) + " rays downward...", progress=42); startTime = time.time()
+        update_status(text="Casting " + str(preciseHorizontalBounds*preciseVerticalBounds) + " rays downward...", progress=42); startTime = time.time()
         points, temporaryHitPoint = vtk.vtkPoints(), [0.0, 0.0, 0.0]
-        hitPointMatrix = [[None for ai in xrange(preciseA)] for si in reversed(xrange(preciseS))]
-        for si in reversed(xrange(preciseS)):
-            for ai in xrange(preciseA):
-                res = bspTree.IntersectWithLine([-r, -a/2.0 + ai*precision, -s/2.0 + si*precision], [r, -a/2.0 + ai*precision, -s/2.0 + si*precision], 0, vtk.reference(0), temporaryHitPoint, [0.0, 0.0, 0.0], vtk.reference(0), vtk.reference(0))
-                if res != 0 and -50 <= temporaryHitPoint[0] < 20:
-                    temporaryHitPoint[0] -= 0.3  # raised to improve visibility
-                    hitPointMatrix[si][ai] = HitPoint(points.InsertNextPoint(temporaryHitPoint), temporaryHitPoint[:])
+        hitPointMatrix = [[None for i in xrange(preciseHorizontalBounds)] for j in reversed(xrange(preciseVerticalBounds))]
+        for i in reversed(xrange(preciseVerticalBounds)):
+            for j in xrange(preciseHorizontalBounds):
+                start, end = rayBuilder(i, j)
+                res = bspTree.IntersectWithLine(start, end, 0, vtk.reference(0), temporaryHitPoint, [0.0, 0.0, 0.0], vtk.reference(0), vtk.reference(0))
+                if res != 0 and region_of_interest[0] <= temporaryHitPoint[castIndex] < region_of_interest[1]:
+                    temporaryHitPoint[castIndex] += 0.3 *negated  # raised to improve visibility
+                    hitPointMatrix[i][j] = HitPoint(points.InsertNextPoint(temporaryHitPoint), temporaryHitPoint[:])
 
         # form cells
         update_status(text="Forming top layer polygons", progress=64)
@@ -504,7 +611,7 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
                 if None in hitPoints: continue
                 rawNormal = numpy.linalg.solve(numpy.array([hitPoints[0].point, hitPoints[1].point, hitPoints[2].point]), [1, 1, 1])
                 hitPointMatrix[i][j].normal = rawNormal / numpy.sqrt(numpy.sum(rawNormal**2))
-                v1, v2 = numpy.array(hitPointMatrix[i][j].normal), numpy.array([-1.0, 0.0, 0.0])     # TODO make direction configurable
+                v1, v2 = numpy.array(hitPointMatrix[i][j].normal), numpy.array(castVector)
                 degrees = numpy.degrees(numpy.math.atan2(len(numpy.cross(v1, v2)), numpy.dot(v1, v2)))
                 if degrees < 80: cells.InsertNextCell(4, [p.pid for p in hitPoints])
         update_status(text="Finished ray-casting in " + str("%.1f" % (time.time() - startTime)) + "s, found " + str(cells.GetNumberOfCells()) + " cells...", progress=80)
@@ -514,7 +621,7 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         topLayerPolyData.SetPoints(points)
         topLayerPolyData.SetPolys(cells)
         topLayerPolyData.Modified()
-        return topLayerPolyData, [p for r in hitPointMatrix for p in r if p is not None]
+        return topLayerPolyData, [p for d0 in hitPointMatrix for p in d0 if p is not None]
 
     @staticmethod
     def build_model(polydata, update_status):
@@ -537,7 +644,13 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         return thicknessTable, airCellTable
 
     @staticmethod
-    def ray_cast_color_thickness(polydata, top_layer_polydata, hit_point_list, model_node, dimensions, update_status):
+    def ray_cast_color_thickness(polydata, hit_point_list, ray_direction, dimensions, update_status):
+        # configure ray direction
+        castIndex = None
+        if ray_direction is RayDirection.R or ray_direction is RayDirection.L: castIndex = 0
+        elif ray_direction is RayDirection.A or ray_direction is RayDirection.P: castIndex = 1
+        elif ray_direction is RayDirection.S or ray_direction is RayDirection.I: castIndex = 2
+
         update_status(text="Building intersection object tree...", progress=81)
         bspTree = vtk.vtkModifiedBSPTree()
         bspTree.SetDataSet(polydata)
@@ -558,7 +671,7 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
 
         pointsOfIntersection, cellsOfIntersection = vtk.vtkPoints(), vtk.vtkIdList()
         for i, hitPoint in enumerate(hit_point_list):
-            stretchFactor = dimensions[0]
+            stretchFactor = dimensions[castIndex]
             start = [hitPoint.point[0] + hitPoint.normal[0]*stretchFactor, hitPoint.point[1] + hitPoint.normal[1]*stretchFactor, hitPoint.point[2] + hitPoint.normal[2]*stretchFactor]
             end = [hitPoint.point[0] - hitPoint.normal[0]*stretchFactor, hitPoint.point[1] - hitPoint.normal[1]*stretchFactor, hitPoint.point[2] - hitPoint.normal[2]*stretchFactor]
             # slicer.modules.markups.logic().AddFiducial(start[0], start[1], start[2])
