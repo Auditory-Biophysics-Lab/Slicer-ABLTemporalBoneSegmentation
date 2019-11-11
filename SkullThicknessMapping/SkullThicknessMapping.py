@@ -6,6 +6,8 @@ import numpy
 import time
 import qt
 import vtk
+import colorsys
+import math
 from slicer.ScriptedLoadableModule import *
 
 
@@ -73,6 +75,16 @@ class InterfaceTools:
         b = qt.QLabel(text)
         if width is not None: b.setFixedWidth(width)
         return b
+    
+    @staticmethod
+    def build_icon_button(icon_path, on_click, width=50, tooltip=None):
+        path = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + icon_path
+        icon = qt.QPixmap(path).scaled(qt.QSize(16, 16), qt.Qt.KeepAspectRatio, qt.Qt.SmoothTransformation)
+        fitAllButton = qt.QToolButton()
+        fitAllButton.setIcon(qt.QIcon(icon))
+        fitAllButton.setFixedSize(width, 24)
+        if tooltip is not None: fitAllButton.setToolTip(tooltip)
+        fitAllButton.connect('clicked(bool)', on_click)
 
 
 class SkullThicknessMappingType:
@@ -160,6 +172,22 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         SkullThicknessMappingLogic.reset_view(RayDirection.L)
         self.update_all()
 
+        # thicknessTable = slicer.vtkMRMLColorTableNode()
+        # thicknessTable.SetTypeToUser()
+        # thicknessTable.SetNumberOfColors(11)
+        # thicknessTable.SetName("ThicknessColorMap")
+        # # thicknessTable.SetHideFromEditors(0)
+        # # thicknessTable.NamesInitialisedOff()
+        # try:
+        #     for i in range(0, 10): thicknessTable.SetColor(i, "Test", 1.0, 0.0, 0.0)
+        #     # thicknessTable.SetColor(0, "Test", 1.0, 0.0, 0.0)
+        # except Exception as e:
+        #     print(e)
+        # slicer.mrmlScene.AddNode(thicknessTable)
+        # print(thicknessTable)
+        # print("ok...")
+
+
         # TODO REMOVE TESTING
         slicer.mrmlScene.Clear()
         path = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Sample/Images/1601L.img"
@@ -168,21 +196,15 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
 
     # interface build ------------------------------------------------------------------------------
     def build_input_tools(self):
+        layout = qt.QFormLayout()
+
         self.volumeSelector = InterfaceTools.build_volume_selector(on_click=self.update_all)
-        path = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + '/Resources/Icons/fit.png'
-        icon = qt.QPixmap(path).scaled(qt.QSize(16, 16), qt.Qt.KeepAspectRatio, qt.Qt.SmoothTransformation)
-        fitAllButton = qt.QToolButton()
-        fitAllButton.setIcon(qt.QIcon(icon))
-        fitAllButton.setFixedSize(50, 24)
-        fitAllButton.setToolTip("Reset 3D view.")
-        fitAllButton.connect('clicked(bool)', lambda: SkullThicknessMappingLogic.reset_view(self.CONFIG_rayDirection))
         box = qt.QHBoxLayout()
         box.addWidget(self.volumeSelector)
-        box.addWidget(fitAllButton)
-        self.infoLabel = qt.QLabel()
-
-        layout = qt.QFormLayout()
+        box.addWidget(InterfaceTools.build_icon_button('/Resources/Icons/fit.png', on_click=lambda: SkullThicknessMappingLogic.reset_view(self.CONFIG_rayDirection), tooltip="Reset 3D view."))
         layout.addRow("Input Volume: ", box)
+
+        self.infoLabel = qt.QLabel()
         layout.addWidget(self.infoLabel)
         layout.setMargin(10)
         return layout
@@ -232,18 +254,18 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         # TODO
 
         # min/max
-        # def setMinAirCell(value): self.CONFIG_minAirCell = value
-        # def setMinSkullThickness(value): self.CONFIG_minSkullThickness = value
-        # box = qt.QHBoxLayout()
-        # box.addStretch()
-        # box.addWidget(InterfaceTools.build_spin_box(0.0, 1000.0, decimals=2, step=0.1, initial=8.7, click=setMinSkullThickness, width=80))
-        # box.addWidget(InterfaceTools.build_label('mm', 30))
-        # layout.addRow("Minimum thickness depth: ", box)
-        # box = qt.QHBoxLayout()
-        # box.addStretch()
-        # box.addWidget(InterfaceTools.build_spin_box(0.0, 1000.0, decimals=2, step=0.1, initial=4.0, click=setMinAirCell, width=80))
-        # box.addWidget(InterfaceTools.build_label('mm', 30))
-        # layout.addRow("Minimum air cell depth: ", box)
+        def setMinAirCell(value): self.CONFIG_minAirCell = value
+        def setMinSkullThickness(value): self.CONFIG_minSkullThickness = value
+        box = qt.QHBoxLayout()
+        box.addStretch()
+        box.addWidget(InterfaceTools.build_spin_box(0.0, 1000.0, decimals=2, step=0.1, initial=8.7, click=setMinSkullThickness, width=80))
+        box.addWidget(InterfaceTools.build_label('mm', 30))
+        layout.addRow("Minimum thickness depth: ", box)
+        box = qt.QHBoxLayout()
+        box.addStretch()
+        box.addWidget(InterfaceTools.build_spin_box(0.0, 1000.0, decimals=2, step=0.1, initial=4.0, click=setMinAirCell, width=80))
+        box.addWidget(InterfaceTools.build_label('mm', 30))
+        layout.addRow("Minimum air cell depth: ", box)
 
         # quality
         def setQuality(value): self.CONFIG_precision = value
@@ -405,13 +427,17 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
             polydata=self.topLayerPolyData,
             update_status=self.update_status
         )
-        if self.thicknessColourNode is None: self.thicknessColourNode, self.airCellColourNode = SkullThicknessMappingLogic.load_color_tables()
         self.thicknessScalarArray, self.airCellScalarArray = SkullThicknessMappingLogic.ray_cast_color_thickness(
             polydata=self.modelPolyData,
             hit_point_list=self.hitPointList,
             ray_direction=self.CONFIG_rayDirection,
             dimensions=self.volumeSelector.currentNode().GetImageData().GetDimensions(),
             update_status=self.update_status
+        )
+        self.thicknessColourNode, self.airCellColourNode = SkullThicknessMappingLogic.load_color_tables()
+        self.thicknessColourNode, self.airCellColourNode = SkullThicknessMappingLogic.build_color_tables(
+            min_thickness=self.CONFIG_minSkullThickness,
+            min_air_cell=self.CONFIG_minAirCell
         )
         self.click_result_radio()
         self.state = SkullThicknessMappingState.FINISHED
@@ -577,13 +603,6 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
             end = start[:]; end[castIndex] = end[castIndex] * -1.0
             return start, end
 
-        print(negated)
-        print(castIndex)
-        print(castVector)
-        print(castPlaneIndices)
-        print(preciseVerticalBounds)
-        print(preciseHorizontalBounds)
-
         # build search tree
         update_status(text="Building intersection object tree...", progress=41)
         bspTree = vtk.vtkModifiedBSPTree()
@@ -636,14 +655,6 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         return modelNode
 
     @staticmethod
-    def load_color_tables():
-        path = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Tables/ThicknessGradient.txt"
-        thicknessTable = slicer.util.loadColorTable(path, returnNode=True)[1]
-        path = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Tables/AirCellGradient.txt"
-        airCellTable = slicer.util.loadColorTable(path, returnNode=True)[1]
-        return thicknessTable, airCellTable
-
-    @staticmethod
     def ray_cast_color_thickness(polydata, hit_point_list, ray_direction, dimensions, update_status):
         # configure ray direction
         castIndex = None
@@ -666,7 +677,7 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
 
         def calculateDistance(point1, point2):
             d = numpy.linalg.norm(numpy.array((point1[0], point1[1], point1[2])) - numpy.array((point2[0], point2[1], point2[2])))
-            # d = d * 20
+            # d = d * 10 # TODO increase precision
             return d
 
         pointsOfIntersection, cellsOfIntersection = vtk.vtkPoints(), vtk.vtkIdList()
@@ -674,20 +685,62 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
             stretchFactor = dimensions[castIndex]
             start = [hitPoint.point[0] + hitPoint.normal[0]*stretchFactor, hitPoint.point[1] + hitPoint.normal[1]*stretchFactor, hitPoint.point[2] + hitPoint.normal[2]*stretchFactor]
             end = [hitPoint.point[0] - hitPoint.normal[0]*stretchFactor, hitPoint.point[1] - hitPoint.normal[1]*stretchFactor, hitPoint.point[2] - hitPoint.normal[2]*stretchFactor]
-            # slicer.modules.markups.logic().AddFiducial(start[0], start[1], start[2])
-            # slicer.modules.markups.logic().AddFiducial(end[0], end[1], end[2])
-            # slicer.modules.markups.logic().AddFiducial(hitPoint.point[0], hitPoint.point[1], hitPoint.point[2])
             res = bspTree.IntersectWithLine(start, end, 0, pointsOfIntersection, cellsOfIntersection)
             if pointsOfIntersection.GetNumberOfPoints() < 2: continue
-            p1, p2 = pointsOfIntersection.GetPoint(0), pointsOfIntersection.GetPoint(pointsOfIntersection.GetNumberOfPoints()-1)
-            skullThicknessScalarArray.InsertTuple1(hitPoint.pid, calculateDistance(p1, p2))
-            # print('Point ' + str(i) + '(' + str(pointsOfIntersection.GetNumberOfPoints()) + ' hits) thickness: ' + str(thickness))
-            p1, p2 = pointsOfIntersection.GetPoint(0), pointsOfIntersection.GetPoint(1)
-            airCellScalarArray.InsertTuple1(hitPoint.pid, calculateDistance(p1, p2))
+
+            skullThickness = calculateDistance(pointsOfIntersection.GetPoint(0), pointsOfIntersection.GetPoint(pointsOfIntersection.GetNumberOfPoints()-1))
+            skullThicknessScalarArray.InsertTuple1(hitPoint.pid, skullThickness)
+
+            airCellThickness = calculateDistance(pointsOfIntersection.GetPoint(0), pointsOfIntersection.GetPoint(1))
+            airCellScalarArray.InsertTuple1(hitPoint.pid, airCellThickness)
+
             if i%500 == 0: update_status(text="Calculating thickness (may take long)...", progress=82 + int(round((i*1.0/total*1.0)*18.0)))
-        # update_status(text="Rendering color map...", progress=98)
         update_status(text="Finished thickness calculation in " + str("%.1f" % (time.time() - startTime)) + "s...", progress=100)
         return skullThicknessScalarArray, airCellScalarArray
+
+    @staticmethod
+    def load_color_tables():
+        path = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Tables/ThicknessGradient.txt"
+        thicknessTable = slicer.util.loadColorTable(path, returnNode=True)[1]
+        path = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Tables/AirCellGradient.txt"
+        airCellTable = slicer.util.loadColorTable(path, returnNode=True)[1]
+        return thicknessTable, airCellTable
+
+    @staticmethod
+    def build_color_table(name, range):
+        table = slicer.vtkMRMLColorTableNode()
+        table.SetName(name)
+        table.SetHideFromEditors(0)
+        table.SetTypeToFile()
+        table.NamesInitialisedOff()
+        table.SetNumberOfColors(range)
+        table.GetLookupTable().SetTableRange(0, range)
+        table.NamesInitialisedOn()
+        slicer.mrmlScene.AddNode(table)
+        return table
+
+    @staticmethod
+    def build_color_tables(min_thickness, min_air_cell):
+        def calculateAndSetColor(table, i, hue=0.0, sat=1.0, val=1.0):
+            rgb = colorsys.hsv_to_rgb(hue, sat, val)
+            table.SetColor(i, str(i) + ' mm', rgb[0], rgb[1], rgb[2], 1.0)
+        def p(lhs, rhs, base, right_mod=1.0): return float(lhs-base)/float((rhs-base)*right_mod)
+
+        # thickness table
+        ix = [0, 1, int(round(min_thickness) - round(min_thickness)/2), int(round(min_thickness)), int(round(min_thickness)*1.5)]
+        thicknessTable = SkullThicknessMappingLogic.build_color_table('ThicknessColorMap', ix[-1])
+        for i in range(ix[0], ix[1]): thicknessTable.SetColor(i, str(i) + ' mm', 1.0, 0.0, 0.6, 1.0)
+        for i in range(ix[1], ix[2]): thicknessTable.SetColor(i, str(i) + ' mm', 1.0, 0.0, 0.0, 1.0)
+        for i in range(ix[2], ix[3]): calculateAndSetColor(thicknessTable, i, hue=p(i, ix[3], ix[2], right_mod=3.0))
+        for i in range(ix[3], ix[-1]): thicknessTable.SetColor(i, str(i) + ' mm', 0.0, 1.0, 0.1, 1.0)
+
+        # air cell table
+        ix = [0, int(math.ceil(min_air_cell/2)+1), int(round(min_air_cell)), int(round(min_air_cell)*1.5)]
+        airCellTable = SkullThicknessMappingLogic.build_color_table('AirCellColorMap', ix[-1])
+        for i in range(ix[0], ix[1]): calculateAndSetColor(airCellTable, i, hue=0.66 - p(i, ix[1], ix[0]) * 0.09, sat=0.8, val=0.9)
+        for i in range(ix[1], ix[2]): calculateAndSetColor(airCellTable, i, hue=0.35 - p(i, ix[2], ix[1]) * 0.12, sat=0.5, val=0.9)
+        for i in range(ix[2], ix[-1]): airCellTable.SetColor(i, str(i) + ' mm', 0.97, 0.96, 0.1, 1.0)
+        return thicknessTable, airCellTable
 
     @staticmethod
     def set_scalar_colour_bar_state(state, color_node_id=None):
