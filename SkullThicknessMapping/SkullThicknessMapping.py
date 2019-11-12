@@ -99,6 +99,13 @@ class SkullThicknessMappingState:
     FINISHED = 4
 
 
+class SkullThicknessMappingQuality:
+    VERY_LOW = 'Very Low'
+    LOW = 'Low'
+    MEDIUM = 'Medium'
+    HIGH = 'High'
+
+
 class RayDirection:
     R = 'R'
     L = 'L'
@@ -127,6 +134,8 @@ class SkullThicknessMapping(ScriptedLoadableModule):
         self.parent.contributors = ["Evan Simpson (Western University)"]
         self.parent.helpText = "Version 1.0-2019.11.1\n" + self.getDefaultModuleDocumentationLink()
         self.parent.acknowledgementText = "This module was originally developed by Evan Simpson at The University of Western Ontario in the HML/SKA Auditory Biophysics Lab."
+
+
 
 
 class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
@@ -268,13 +277,22 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         layout.addRow("Minimum air cell depth: ", box)
 
         # quality
-        def setQuality(value): self.CONFIG_precision = value
+        comboBox = qt.QComboBox()
+        comboBox.addItem(SkullThicknessMappingQuality.VERY_LOW)
+        comboBox.addItem(SkullThicknessMappingQuality.LOW)
+        comboBox.addItem(SkullThicknessMappingQuality.MEDIUM)
+        comboBox.addItem(SkullThicknessMappingQuality.HIGH)
+        comboBox.setCurrentText(SkullThicknessMappingQuality.MEDIUM)
+        comboBox.setFixedWidth(113)
+        def currentIndexChanged(string):
+            if string is SkullThicknessMappingQuality.VERY_LOW: self.CONFIG_precision = 0.25
+            elif string is SkullThicknessMappingQuality.LOW: self.CONFIG_precision = 0.75
+            elif string is SkullThicknessMappingQuality.MEDIUM: self.CONFIG_precision = 1.0
+            elif string is SkullThicknessMappingQuality.HIGH: self.CONFIG_precision = 2.0
+        comboBox.connect("currentIndexChanged(QString)", currentIndexChanged)
         box = qt.QHBoxLayout()
         box.addStretch()
-        box.addWidget(InterfaceTools.build_radio_button('High', lambda: setQuality(0.25)))
-        box.addWidget(InterfaceTools.build_radio_button('Medium', lambda: setQuality(0.75)))
-        box.addWidget(InterfaceTools.build_radio_button('Low', lambda: setQuality(1.0), checked=True))
-        box.addWidget(InterfaceTools.build_radio_button('Very Low', lambda: setQuality(2.0)))
+        box.addWidget(comboBox)
         layout.addRow("Render quality: ", box)
 
         layout.setMargin(10)
