@@ -25,8 +25,9 @@ class InterfaceTools:
         return d
 
     @staticmethod
-    def build_group(title):
-        g = qt.QGroupBox(title)
+    def build_frame(title):
+        g = qt.QFrame()
+        g.setFrameStyle(3)
         return g
 
     @staticmethod
@@ -80,15 +81,41 @@ class InterfaceTools:
     def build_icon_button(icon_path, on_click, width=50, tooltip=None):
         path = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + icon_path
         icon = qt.QPixmap(path).scaled(qt.QSize(16, 16), qt.Qt.KeepAspectRatio, qt.Qt.SmoothTransformation)
-        fitAllButton = qt.QToolButton()
-        fitAllButton.setIcon(qt.QIcon(icon))
-        fitAllButton.setFixedSize(width, 24)
-        if tooltip is not None: fitAllButton.setToolTip(tooltip)
-        fitAllButton.connect('clicked(bool)', on_click)
+        b = qt.QToolButton()
+        b.setIcon(qt.QIcon(icon))
+        b.setFixedSize(width, 24)
+        if tooltip is not None: b.setToolTip(tooltip)
+        b.connect('clicked(bool)', on_click)
+        return b
+
+    @staticmethod
+    def build_min_max(initial, decimals=2, step=0.1, lb=0.0, hb=1000.0, units='mm', min_text='MIN: ', max_text='MAX: '):
+        def setMin(value): initial[0] = value
+        def setMax(value): initial[1] = value
+        box = qt.QHBoxLayout()
+        box.addStretch()
+        box.addWidget(InterfaceTools.build_label(min_text, 40))
+        lowerSb = InterfaceTools.build_spin_box(lb, hb, decimals=decimals, step=step, initial=initial[0], click=setMin, width=80)
+        box.addWidget(lowerSb)
+        box.addWidget(InterfaceTools.build_label(units, 50))
+        box.addWidget(InterfaceTools.build_label(max_text, 40))
+        higherSb = InterfaceTools.build_spin_box(lb, hb, decimals=decimals, step=step, initial=initial[1], click=setMax, width=80)
+        box.addWidget(higherSb)
+        box.addWidget(InterfaceTools.build_label(units, 30))
+        def setBoxes(value=None, enabled=None):
+            if value is not None:
+                setMin(value[0])
+                lowerSb.setValue(value[0])
+                setMax(value[0])
+                higherSb.setValue(value[1])
+            if enabled is not None:
+                lowerSb.enabled = enabled
+                higherSb.enabled = enabled
+        return box, setBoxes
 
 
 class SkullThicknessMappingType:
-    THICKNESS = 'Thickness'
+    THICKNESS = 'Thickness to dura'
     AIR_CELL = 'Distance to first air cell'
 
 
@@ -104,6 +131,7 @@ class SkullThicknessMappingQuality:
     LOW = 'Low'
     MEDIUM = 'Medium'
     HIGH = 'High'
+    VERY_HIGH = 'Very High'
 
 
 class RayDirection:
@@ -136,8 +164,6 @@ class SkullThicknessMapping(ScriptedLoadableModule):
         self.parent.acknowledgementText = "This module was originally developed by Evan Simpson at The University of Western Ontario in the HML/SKA Auditory Biophysics Lab."
 
 
-
-
 class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
     # Data members --------------
     state = SkullThicknessMappingState.WAITING
@@ -150,11 +176,11 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
     modelNode = None
 
     # Configuration preferences
-    CONFIG_precision = 1.0
+    CONFIG_precision = 0.25     # TODO fix config
     CONFIG_rayDirection = 'L'
     CONFIG_regionOfInterest = [-50, 20]
-    CONFIG_minAirCell = 4.0
-    CONFIG_minSkullThickness = 8.7
+    CONFIG_minMaxAirCell = [0.0, 4.0]
+    CONFIG_minMaxSkullThickness = [0.0, 8.7]
 
     # UI members (in order of appearance) --------------
     infoLabel = None
@@ -176,7 +202,7 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         ScriptedLoadableModuleWidget.setup(self)
         self.layout.addLayout(self.build_input_tools())
         self.layout.addLayout(self.build_execution_tools())
-        self.layout.addWidget(self.build_result_tools())
+        self.layout.addLayout(self.build_result_tools())
         self.layout.addStretch()
         SkullThicknessMappingLogic.reset_view(RayDirection.L)
         self.update_all()
@@ -205,16 +231,19 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
 
     # interface build ------------------------------------------------------------------------------
     def build_input_tools(self):
-        layout = qt.QFormLayout()
+        layout = qt.QVBoxLayout()
 
         self.volumeSelector = InterfaceTools.build_volume_selector(on_click=self.update_all)
         box = qt.QHBoxLayout()
         box.addWidget(self.volumeSelector)
         box.addWidget(InterfaceTools.build_icon_button('/Resources/Icons/fit.png', on_click=lambda: SkullThicknessMappingLogic.reset_view(self.CONFIG_rayDirection), tooltip="Reset 3D view."))
-        layout.addRow("Input Volume: ", box)
-
+        form = qt.QFormLayout()
+        form.addRow("Input Volume: ", box)
         self.infoLabel = qt.QLabel()
-        layout.addWidget(self.infoLabel)
+        form.addWidget(self.infoLabel)
+
+        layout.addWidget(qt.QLabel('Select an input volume to auto-segment, render, and calculate thickness.'))
+        layout.addLayout(form)
         layout.setMargin(10)
         return layout
 
@@ -229,66 +258,60 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         box = qt.QVBoxLayout()
         row1 = qt.QHBoxLayout()
         row1.addStretch()
-        row1.addWidget(InterfaceTools.build_radio_button(RayDirection.R, lambda: setDir(RayDirection.R), width=50))
-        row1.addWidget(InterfaceTools.build_radio_button(RayDirection.A, lambda: setDir(RayDirection.A), width=50))
-        row1.addWidget(InterfaceTools.build_radio_button(RayDirection.S, lambda: setDir(RayDirection.S), width=50))
+        row1.addWidget(InterfaceTools.build_radio_button(RayDirection.R, lambda: setDir(RayDirection.R), width=100))
+        row1.addWidget(InterfaceTools.build_radio_button(RayDirection.A, lambda: setDir(RayDirection.A), width=100))
+        row1.addWidget(InterfaceTools.build_radio_button(RayDirection.S, lambda: setDir(RayDirection.S), width=100))
         row2 = qt.QHBoxLayout()
         row2.addStretch()
-        row2.addWidget(InterfaceTools.build_radio_button(RayDirection.L, lambda: setDir(RayDirection.L), width=50, checked=True))
-        row2.addWidget(InterfaceTools.build_radio_button(RayDirection.P, lambda: setDir(RayDirection.P), width=50))
-        row2.addWidget(InterfaceTools.build_radio_button(RayDirection.I, lambda: setDir(RayDirection.I), width=50))
+        row2.addWidget(InterfaceTools.build_radio_button(RayDirection.L, lambda: setDir(RayDirection.L), width=100, checked=True))
+        row2.addWidget(InterfaceTools.build_radio_button(RayDirection.P, lambda: setDir(RayDirection.P), width=100))
+        row2.addWidget(InterfaceTools.build_radio_button(RayDirection.I, lambda: setDir(RayDirection.I), width=100))
         box.addLayout(row1)
         box.addLayout(row2)
         layout.addRow("Ray-cast direction: ", box)
 
         # region of interest
-        def setUpperBound(value): self.CONFIG_regionOfInterest[0] = value
-        def setLowerBound(value): self.CONFIG_regionOfInterest[1] = value
-        box = qt.QVBoxLayout()
-        row1 = qt.QHBoxLayout()
-        row1.addStretch()
-        row1.addWidget(qt.QLabel('Upper bound'))
-        row1.addWidget(InterfaceTools.build_spin_box(-10000, 10000, decimals=0, step=1.0, initial=-50, click=setUpperBound, width=80))
-        row1.addWidget(InterfaceTools.build_label('units', 30))
-        row2 = qt.QHBoxLayout()
-        row2.addStretch()
-        row2.addWidget(qt.QLabel('Lower bound'))
-        row2.addWidget(InterfaceTools.build_spin_box(-10000, 10000, decimals=0, step=1.0, initial=20, click=setLowerBound, width=80))
-        row2.addWidget(InterfaceTools.build_label('units', 30))
-        box.addLayout(row1)
-        box.addLayout(row2)
-        layout.addRow("Ray-cast region of interest: ", box)
+        roiBox, setRoi = InterfaceTools.build_min_max(self.CONFIG_regionOfInterest, step=1.0, decimals=0, lb=-1000, hb=1000, units='units', min_text='Upper bound', max_text='Lower bound')
+        layout.addRow("Ray-cast region of interest: ", roiBox)
 
         # degrees of interest
         # TODO
 
         # min/max
-        def setMinAirCell(value): self.CONFIG_minAirCell = value
-        def setMinSkullThickness(value): self.CONFIG_minSkullThickness = value
+
+        skullBox, setSkullBoxes = InterfaceTools.build_min_max(self.CONFIG_minMaxSkullThickness)
+        airCellBox, setAirBoxes = InterfaceTools.build_min_max(self.CONFIG_minMaxAirCell)
+        comboBox = qt.QComboBox()
+        comboBox.addItems(['Manual', 'BCI 601', 'BCI 602'])
+        comboBox.setFixedWidth(350)
+        def currentIndexChanged(string):
+            if string == 'BCI 601':
+                setSkullBoxes([0.0, 8.7], enabled=False)
+                setAirBoxes([0.0, 4.0], enabled=False)
+            elif string == 'BCI 602':
+                setSkullBoxes([0.0, 4.5], enabled=False)
+                setAirBoxes([0.0, 4.0], enabled=False)
+            elif string == 'Manual':
+                setSkullBoxes(enabled=True)
+                setAirBoxes(enabled=True)
+        comboBox.connect("currentIndexChanged(QString)", currentIndexChanged)
         box = qt.QHBoxLayout()
         box.addStretch()
-        box.addWidget(InterfaceTools.build_spin_box(0.0, 1000.0, decimals=2, step=0.1, initial=8.7, click=setMinSkullThickness, width=80))
-        box.addWidget(InterfaceTools.build_label('mm', 30))
-        layout.addRow("Minimum thickness depth: ", box)
-        box = qt.QHBoxLayout()
-        box.addStretch()
-        box.addWidget(InterfaceTools.build_spin_box(0.0, 1000.0, decimals=2, step=0.1, initial=4.0, click=setMinAirCell, width=80))
-        box.addWidget(InterfaceTools.build_label('mm', 30))
-        layout.addRow("Minimum air cell depth: ", box)
+        box.addWidget(comboBox)
+        layout.addRow('Depth preset: ', box)
+        layout.addRow("Thickness depth: ", skullBox)
+        layout.addRow("Air cell depth: ", airCellBox)
 
         # quality
         comboBox = qt.QComboBox()
-        comboBox.addItem(SkullThicknessMappingQuality.VERY_LOW)
-        comboBox.addItem(SkullThicknessMappingQuality.LOW)
-        comboBox.addItem(SkullThicknessMappingQuality.MEDIUM)
-        comboBox.addItem(SkullThicknessMappingQuality.HIGH)
-        comboBox.setCurrentText(SkullThicknessMappingQuality.MEDIUM)
+        comboBox.addItems([SkullThicknessMappingQuality.VERY_LOW, SkullThicknessMappingQuality.LOW, SkullThicknessMappingQuality.MEDIUM, SkullThicknessMappingQuality.HIGH, SkullThicknessMappingQuality.VERY_HIGH])
         comboBox.setFixedWidth(113)
         def currentIndexChanged(string):
-            if string is SkullThicknessMappingQuality.VERY_LOW: self.CONFIG_precision = 0.25
-            elif string is SkullThicknessMappingQuality.LOW: self.CONFIG_precision = 0.75
-            elif string is SkullThicknessMappingQuality.MEDIUM: self.CONFIG_precision = 1.0
-            elif string is SkullThicknessMappingQuality.HIGH: self.CONFIG_precision = 2.0
+            if string == SkullThicknessMappingQuality.VERY_LOW: self.CONFIG_precision = 4.0
+            elif string == SkullThicknessMappingQuality.LOW: self.CONFIG_precision = 2.0
+            elif string == SkullThicknessMappingQuality.MEDIUM: self.CONFIG_precision = 1.0
+            elif string == SkullThicknessMappingQuality.HIGH: self.CONFIG_precision = 0.50
+            elif string == SkullThicknessMappingQuality.VERY_HIGH: self.CONFIG_precision = 0.25
         comboBox.connect("currentIndexChanged(QString)", currentIndexChanged)
         box = qt.QHBoxLayout()
         box.addStretch()
@@ -299,9 +322,6 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         return self.configuration_tools
 
     def build_execution_tools(self):
-        # section = InterfaceTools.build_group('Execution')
-        # section = InterfaceTools.build_dropdown('Execution')
-
         self.executeButton = qt.QPushButton('Execute')
         self.executeButton.setFixedHeight(36)
         self.executeButton.connect('clicked(bool)', self.click_execute)
@@ -330,10 +350,10 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         return layout
 
     def build_result_tools(self):
-        self.resultSection = InterfaceTools.build_group('Results')
+        self.resultSection = InterfaceTools.build_frame('Results')
 
-        self.displayThicknessSelector = InterfaceTools.build_radio_button('Thickness', self.click_result_radio, checked=True)
-        self.displayFirstAirCellSelector = InterfaceTools.build_radio_button('Distance To First Air-cell', self.click_result_radio)
+        self.displayThicknessSelector = InterfaceTools.build_radio_button(SkullThicknessMappingType.THICKNESS, self.click_result_radio, checked=True)
+        self.displayFirstAirCellSelector = InterfaceTools.build_radio_button(SkullThicknessMappingType.AIR_CELL, self.click_result_radio)
 
         box = qt.QVBoxLayout()
         box.addWidget(self.displayThicknessSelector)
@@ -343,12 +363,17 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         self.displayScalarBarCheckbox.checked = True
         self.displayScalarBarCheckbox.connect("stateChanged(int)", self.click_toggle_scalar_bar)
 
-        layout = qt.QFormLayout(self.resultSection)
-        layout.addRow("Map Display: ", box)
-        layout.addRow(qt.QLayout())
-        layout.addRow("Display Scalar Bar: ", self.displayScalarBarCheckbox)
-        layout.setMargin(10)
-        return self.resultSection
+        form = qt.QFormLayout(self.resultSection)
+        # form.addRow('Results', qt.QWidget())
+        form.addRow("Map Display: ", box)
+        # form.addRow(qt.QLayout())
+        form.addRow("Display Scalar Bar: ", self.displayScalarBarCheckbox)
+        form.setContentsMargins(10, 8, 10, 14)
+
+        layout = qt.QVBoxLayout()
+        layout.addWidget(self.resultSection)
+        layout.setContentsMargins(12, 0, 12, 10)
+        return layout
 
     # interface update ------------------------------------------------------------------------------
     def update_all(self):
@@ -604,6 +629,7 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
     @staticmethod
     def rainfall_quad_cast(polydata, dimensions, ray_direction, precision, region_of_interest, update_status):
         # configure ray direction
+        print(precision)
         dimensions = dimensions[::-1]
         negated = 1 if ray_direction in [RayDirection.R, RayDirection.A, RayDirection.S] else -1
         castIndex = None
@@ -612,7 +638,7 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         elif ray_direction is RayDirection.S or ray_direction is RayDirection.I: castIndex = 2
         castVector = [0.0, 0.0, 0.0]; castVector[castIndex] = 1.0 * negated
         castPlaneIndices = [0, 1, 2]; castPlaneIndices.remove(castIndex)
-        preciseHorizontalBounds, preciseVerticalBounds = int(dimensions[castPlaneIndices[0]] / precision), int(dimensions[castPlaneIndices[1]] / precision)
+        preciseHorizontalBounds, preciseVerticalBounds = int(float(dimensions[castPlaneIndices[0]]) / float(precision)), int(float(dimensions[castPlaneIndices[1]]) / float(precision))
         def rayBuilder(i, j):
             start = [None, None, None]
             start[castIndex] = dimensions[castIndex] * negated
@@ -673,6 +699,17 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         return modelNode
 
     @staticmethod
+    def cli_ray_cast_thickness(polydata, hit_point_list, ray_direction, dimensions, update_status):
+        parameters = {
+            'polydata': polydata,
+            'hit_point_list': hit_point_list,
+            'ray_direction': ray_direction,
+            'dimensions': dimensions
+        }
+        # grayMaker = slicer.modules.grayscalemodelmaker
+        # return slicer.cli.runSync(grayMaker, None, parameters)
+
+    @staticmethod
     def ray_cast_color_thickness(polydata, hit_point_list, ray_direction, dimensions, update_status):
         # configure ray direction
         castIndex = None
@@ -695,7 +732,7 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
 
         def calculateDistance(point1, point2):
             d = numpy.linalg.norm(numpy.array((point1[0], point1[1], point1[2])) - numpy.array((point2[0], point2[1], point2[2])))
-            # d = d * 10 # TODO increase precision
+            d = d * 10  # TODO increase precision
             return d
 
         pointsOfIntersection, cellsOfIntersection = vtk.vtkPoints(), vtk.vtkIdList()
@@ -712,7 +749,7 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
             airCellThickness = calculateDistance(pointsOfIntersection.GetPoint(0), pointsOfIntersection.GetPoint(1))
             airCellScalarArray.InsertTuple1(hitPoint.pid, airCellThickness)
 
-            if i%500 == 0: update_status(text="Calculating thickness (may take long)...", progress=82 + int(round((i*1.0/total*1.0)*18.0)))
+            if i%500 == 0: update_status(text="Calculating thickness (~" + str(i) + ' rays)', progress=82 + int(round((i*1.0/total*1.0)*18.0)))
         update_status(text="Finished thickness calculation in " + str("%.1f" % (time.time() - startTime)) + "s...", progress=100)
         return skullThicknessScalarArray, airCellScalarArray
 
@@ -744,20 +781,31 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
             table.SetColor(i, str(i) + ' mm', rgb[0], rgb[1], rgb[2], 1.0)
         def p(lhs, rhs, base, right_mod=1.0): return float(lhs-base)/float((rhs-base)*right_mod)
 
+        precision = 10
+
         # thickness table
-        ix = [0, 1, int(round(min_thickness) - round(min_thickness)/2), int(round(min_thickness)), int(round(min_thickness)*1.5)]
+        # ix = [0, 1*precision, int(round(min_thickness) - round(min_thickness)/2)*precision, int(round(min_thickness))*precision, int(round(min_thickness)*1.5)*precision]
+        ix = [0, 1*precision, int(round(min_thickness) - round(min_thickness)/2)*precision, int(round(min_thickness))*precision, int(round(min_thickness)+1)*precision]
         thicknessTable = SkullThicknessMappingLogic.build_color_table('ThicknessColorMap', ix[-1])
-        for i in range(ix[0], ix[1]): thicknessTable.SetColor(i, str(i) + ' mm', 1.0, 0.0, 0.6, 1.0)
-        for i in range(ix[1], ix[2]): thicknessTable.SetColor(i, str(i) + ' mm', 1.0, 0.0, 0.0, 1.0)
-        for i in range(ix[2], ix[3]): calculateAndSetColor(thicknessTable, i, hue=p(i, ix[3], ix[2], right_mod=3.0))
-        for i in range(ix[3], ix[-1]): thicknessTable.SetColor(i, str(i) + ' mm', 0.0, 1.0, 0.1, 1.0)
+        for i in range(ix[0], ix[-1]): calculateAndSetColor(thicknessTable, i, hue=p(i, ix[-1], ix[0]) * 0.278, sat=0.9, val=0.9)
+        # TODO add +1 account
+
+        # for i in range(ix[0], ix[1]): thicknessTable.SetColor(i, str(i) + ' mm', 1.0, 0.0, 0.6, 1.0)
+        # for i in range(ix[1], ix[2]): thicknessTable.SetColor(i, str(i) + ' mm', 1.0, 0.0, 0.0, 1.0)
+        # for i in range(ix[2], ix[3]): calculateAndSetColor(thicknessTable, i, hue=p(i, ix[3], ix[2], right_mod=3.0))
+        # for i in range(ix[3], ix[-1]): thicknessTable.SetColor(i, str(i) + ' mm', 0.0, 1.0, 0.1, 1.0)
 
         # air cell table
-        ix = [0, int(math.ceil(min_air_cell/2)+1), int(round(min_air_cell)), int(round(min_air_cell)*1.5)]
+        ix = [0, int(math.ceil(min_air_cell/2)+1)*precision, int(round(min_air_cell))*precision, int(round(min_air_cell + 1))*precision]
         airCellTable = SkullThicknessMappingLogic.build_color_table('AirCellColorMap', ix[-1])
-        for i in range(ix[0], ix[1]): calculateAndSetColor(airCellTable, i, hue=0.66 - p(i, ix[1], ix[0]) * 0.09, sat=0.8, val=0.9)
-        for i in range(ix[1], ix[2]): calculateAndSetColor(airCellTable, i, hue=0.35 - p(i, ix[2], ix[1]) * 0.12, sat=0.5, val=0.9)
-        for i in range(ix[2], ix[-1]): airCellTable.SetColor(i, str(i) + ' mm', 0.97, 0.96, 0.1, 1.0)
+        # for i in range(ix[0], ix[1]): calculateAndSetColor(airCellTable, i, hue=0.66 - p(i, ix[1], ix[0]) * 0.09, sat=0.8, val=0.9)
+        # for i in range(ix[1], ix[2]): calculateAndSetColor(airCellTable, i, hue=0.35 - p(i, ix[2], ix[1]) * 0.12, sat=0.5, val=0.9)
+        # for i in range(ix[2], ix[-1]): airCellTable.SetColor(i, str(i) + ' mm', 0.97, 0.96, 0.1, 1.0)
+        # ix = [0, int(math.ceil(min_air_cell/2)+1), int(round(min_air_cell)), int(round(min_air_cell)*1.5)]
+        # 66 - 22
+        for i in range(ix[0], ix[-1]): calculateAndSetColor(airCellTable, i, hue=0.696 - p(i, ix[-1], ix[0]) * 0.571, sat=0.9, val=0.9)
+        # for i in range(ix[2], ix[-1]): airCellTable.SetColor(i, str(i) + ' mm', 0.97, 0.96, 0.1, 1.0)
+
         return thicknessTable, airCellTable
 
     @staticmethod
