@@ -5,6 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f08bb156-2c28-4f65-9fa3-faa143f298d2" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/SkullThicknessMappingCLI/SkullThicknessMappingCLI.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SkullThicknessMappingCLI/SkullThicknessMappingCLI.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/SkullThicknessMapping/SkullThicknessMapping.py" beforeDir="false" afterPath="$PROJECT_DIR$/SkullThicknessMapping/SkullThicknessMapping.py" afterDir="false" />
     </list>
@@ -42,6 +46,7 @@
   <component name="PropertiesComponent">
     <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="com.intellij.ide.scratch.LRUPopupBuilder$1/New Scratch File" value="Python" />
     <property name="last_opened_file_path" value="$USER_HOME$/Desktop/AuditoryBiophysicsLabDeepLearningPreProcessModule" />
     <property name="nodejs_interpreter_path.stuck_in_default_project" value="undefined stuck path" />
     <property name="nodejs_npm_path_reset_for_default_project" value="true" />
@@ -146,7 +151,7 @@
       <workItem from="1573578596200" duration="321000" />
       <workItem from="1573578929211" duration="12000" />
       <workItem from="1573672535122" duration="9108000" />
-      <workItem from="1574094300165" duration="7731000" />
+      <workItem from="1574094300165" duration="16529000" />
     </task>
     <servers />
   </component>

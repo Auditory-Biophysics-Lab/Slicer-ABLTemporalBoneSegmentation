@@ -127,11 +127,11 @@ class SkullThicknessMappingState:
 
 
 class SkullThicknessMappingQuality:
-    VERY_LOW = 'Very Low'
-    LOW = 'Low'
-    MEDIUM = 'Medium'
-    HIGH = 'High'
-    VERY_HIGH = 'Very High'
+    VERY_LOW = 'VERY LOW (ray every 4 dimensional units)'
+    LOW = 'LOW (ray every 2 dimensional units)'
+    MEDIUM = 'MEDIUM (ray every dimensional unit)'
+    HIGH = 'HIGH (ray every 0.5 dimensional units)'
+    VERY_HIGH = 'VERY HIGH (ray every 0.25 dimensional units)'
 
 
 class RayDirection:
@@ -176,7 +176,7 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
     modelNode = None
 
     # Configuration preferences
-    CONFIG_precision = 0.25     # TODO fix config
+    CONFIG_precision = 1.0
     CONFIG_rayDirection = 'L'
     CONFIG_regionOfInterest = [-50, 20]
     CONFIG_minMaxAirCell = [0.0, 4.0]
@@ -206,22 +206,6 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         self.layout.addStretch()
         SkullThicknessMappingLogic.reset_view(RayDirection.L)
         self.update_all()
-
-        # thicknessTable = slicer.vtkMRMLColorTableNode()
-        # thicknessTable.SetTypeToUser()
-        # thicknessTable.SetNumberOfColors(11)
-        # thicknessTable.SetName("ThicknessColorMap")
-        # # thicknessTable.SetHideFromEditors(0)
-        # # thicknessTable.NamesInitialisedOff()
-        # try:
-        #     for i in range(0, 10): thicknessTable.SetColor(i, "Test", 1.0, 0.0, 0.0)
-        #     # thicknessTable.SetColor(0, "Test", 1.0, 0.0, 0.0)
-        # except Exception as e:
-        #     print(e)
-        # slicer.mrmlScene.AddNode(thicknessTable)
-        # print(thicknessTable)
-        # print("ok...")
-
 
         # TODO REMOVE TESTING
         slicer.mrmlScene.Clear()
@@ -271,14 +255,13 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         layout.addRow("Ray-cast direction: ", box)
 
         # region of interest
-        roiBox, setRoi = InterfaceTools.build_min_max(self.CONFIG_regionOfInterest, step=1.0, decimals=0, lb=-1000, hb=1000, units='units', min_text='Upper bound', max_text='Lower bound')
+        roiBox, setRoi = InterfaceTools.build_min_max(self.CONFIG_regionOfInterest, step=1.0, decimals=0, lb=-1000, hb=1000, units='units', min_text='Upper', max_text='Lower')
         layout.addRow("Ray-cast region of interest: ", roiBox)
 
         # degrees of interest
         # TODO
 
         # min/max
-
         skullBox, setSkullBoxes = InterfaceTools.build_min_max(self.CONFIG_minMaxSkullThickness)
         airCellBox, setAirBoxes = InterfaceTools.build_min_max(self.CONFIG_minMaxAirCell)
         comboBox = qt.QComboBox()
@@ -305,7 +288,8 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         # quality
         comboBox = qt.QComboBox()
         comboBox.addItems([SkullThicknessMappingQuality.VERY_LOW, SkullThicknessMappingQuality.LOW, SkullThicknessMappingQuality.MEDIUM, SkullThicknessMappingQuality.HIGH, SkullThicknessMappingQuality.VERY_HIGH])
-        comboBox.setFixedWidth(113)
+        comboBox.setCurrentIndex(2)
+        comboBox.setFixedWidth(350)
         def currentIndexChanged(string):
             if string == SkullThicknessMappingQuality.VERY_LOW: self.CONFIG_precision = 4.0
             elif string == SkullThicknessMappingQuality.LOW: self.CONFIG_precision = 2.0
@@ -479,8 +463,8 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         )
         self.thicknessColourNode, self.airCellColourNode = SkullThicknessMappingLogic.load_color_tables()
         self.thicknessColourNode, self.airCellColourNode = SkullThicknessMappingLogic.build_color_tables(
-            min_thickness=self.CONFIG_minSkullThickness,
-            min_air_cell=self.CONFIG_minAirCell
+            minmax_thickness=self.CONFIG_minMaxSkullThickness,
+            minmax_air_cell=self.CONFIG_minMaxAirCell
         )
         self.click_result_radio()
         self.state = SkullThicknessMappingState.FINISHED
@@ -762,60 +746,47 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         return thicknessTable, airCellTable
 
     @staticmethod
-    def build_color_table(name, range):
+    def build_color_table(name, table_max):
         table = slicer.vtkMRMLColorTableNode()
         table.SetName(name)
         table.SetHideFromEditors(0)
         table.SetTypeToFile()
         table.NamesInitialisedOff()
-        table.SetNumberOfColors(range)
-        table.GetLookupTable().SetTableRange(0, range)
+        table.SetNumberOfColors(table_max)
+        table.GetLookupTable().SetTableRange(0, table_max)
         table.NamesInitialisedOn()
         slicer.mrmlScene.AddNode(table)
         return table
 
     @staticmethod
-    def build_color_tables(min_thickness, min_air_cell):
+    def build_color_tables(minmax_thickness, minmax_air_cell):
+        precision = 10.0
         def calculateAndSetColor(table, i, hue=0.0, sat=1.0, val=1.0):
             rgb = colorsys.hsv_to_rgb(hue, sat, val)
-            table.SetColor(i, str(i) + ' mm', rgb[0], rgb[1], rgb[2], 1.0)
-        def p(lhs, rhs, base, right_mod=1.0): return float(lhs-base)/float((rhs-base)*right_mod)
-
-        precision = 10
+            table.SetColor(i, str(i/precision) + ' mm', rgb[0], rgb[1], rgb[2], 1.0)
+        def p(lhs, rhs, base, right_mod=1.0):
+            return float(lhs-base)/float((rhs-base)*right_mod)
 
         # thickness table
-        # ix = [0, 1*precision, int(round(min_thickness) - round(min_thickness)/2)*precision, int(round(min_thickness))*precision, int(round(min_thickness)*1.5)*precision]
-        ix = [0, 1*precision, int(round(min_thickness) - round(min_thickness)/2)*precision, int(round(min_thickness))*precision, int(round(min_thickness)+1)*precision]
+        ix = [int(i) for i in [minmax_thickness[0]*precision, (minmax_thickness[1])*precision + 1]]
         thicknessTable = SkullThicknessMappingLogic.build_color_table('ThicknessColorMap', ix[-1])
         for i in range(ix[0], ix[-1]): calculateAndSetColor(thicknessTable, i, hue=p(i, ix[-1], ix[0]) * 0.278, sat=0.9, val=0.9)
-        # TODO add +1 account
-
-        # for i in range(ix[0], ix[1]): thicknessTable.SetColor(i, str(i) + ' mm', 1.0, 0.0, 0.6, 1.0)
-        # for i in range(ix[1], ix[2]): thicknessTable.SetColor(i, str(i) + ' mm', 1.0, 0.0, 0.0, 1.0)
-        # for i in range(ix[2], ix[3]): calculateAndSetColor(thicknessTable, i, hue=p(i, ix[3], ix[2], right_mod=3.0))
-        # for i in range(ix[3], ix[-1]): thicknessTable.SetColor(i, str(i) + ' mm', 0.0, 1.0, 0.1, 1.0)
 
         # air cell table
-        ix = [0, int(math.ceil(min_air_cell/2)+1)*precision, int(round(min_air_cell))*precision, int(round(min_air_cell + 1))*precision]
+        ix = [int(i) for i in [minmax_air_cell[0]*precision, (minmax_air_cell[1])*precision + 1]]
         airCellTable = SkullThicknessMappingLogic.build_color_table('AirCellColorMap', ix[-1])
-        # for i in range(ix[0], ix[1]): calculateAndSetColor(airCellTable, i, hue=0.66 - p(i, ix[1], ix[0]) * 0.09, sat=0.8, val=0.9)
-        # for i in range(ix[1], ix[2]): calculateAndSetColor(airCellTable, i, hue=0.35 - p(i, ix[2], ix[1]) * 0.12, sat=0.5, val=0.9)
-        # for i in range(ix[2], ix[-1]): airCellTable.SetColor(i, str(i) + ' mm', 0.97, 0.96, 0.1, 1.0)
-        # ix = [0, int(math.ceil(min_air_cell/2)+1), int(round(min_air_cell)), int(round(min_air_cell)*1.5)]
-        # 66 - 22
         for i in range(ix[0], ix[-1]): calculateAndSetColor(airCellTable, i, hue=0.696 - p(i, ix[-1], ix[0]) * 0.571, sat=0.9, val=0.9)
-        # for i in range(ix[2], ix[-1]): airCellTable.SetColor(i, str(i) + ' mm', 0.97, 0.96, 0.1, 1.0)
 
         return thicknessTable, airCellTable
 
     @staticmethod
     def set_scalar_colour_bar_state(state, color_node_id=None):
         colorWidget = slicer.modules.colors.widgetRepresentation()
-        ctkScalarBarWidget = slicer.util.findChildren(colorWidget, name='VTKScalarBar')[0]
-        ctkScalarBarWidget.setDisplay(state)
+        slicer.util.findChildren(colorWidget, name='VTKScalarBar')[0].setDisplay(state)
+        # ctkScalarBarWidget.SetLabelFormat('%8.f00')
         if state is 0 or color_node_id is None: return
-        activeColorNodeSelector = slicer.util.findChildren(colorWidget, 'ColorTableComboBox')[0]
-        activeColorNodeSelector.setCurrentNodeID(color_node_id)
+        slicer.util.findChildren(colorWidget, 'ColorTableComboBox')[0].setCurrentNodeID(color_node_id)
+        slicer.util.findChildren(colorWidget, 'UseColorNameAsLabelCheckBox')[0].isChecked()
 
     # @staticmethod
     # def polydata_to_polygons(polydata, update_status):
