@@ -754,13 +754,4 @@ class DeepLearningPreProcessModuleTest(ScriptedLoadableModuleTest):
         self.test_DeepLearningPreProcessModule1()
 
     def test_DeepLearningPreProcessModule1(self):
-        """ Ideally you should have several levels of tests.  At the lowest level
-    tests should exercise the functionality of the logic with different inputs
-    (both valid and invalid).  At higher levels your tests should emulate the
-    way the user would interact with your code and confirm that it still works
-    the way you intended.
-    One of the most important features of the tests is that it should alert other
-    developers when their changes will have an impact on the behavior of your
-    module.  For example, if a developer removes a feature that you depend on,
-    your test should break so they know that the feature is needed.
-    """
+        pass

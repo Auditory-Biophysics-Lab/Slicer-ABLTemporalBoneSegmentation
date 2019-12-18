@@ -22,6 +22,7 @@ include(${Slicer_USE_FILE})
 add_subdirectory(DeepLearningPreProcessModule)
 add_subdirectory(IntraSampleRegistration)
 add_subdirectory(SkullThicknessMapping)
+add_subdirectory(SlicerRadiomicsCLI)
 ## NEXT_MODULE
 
 #-----------------------------------------------------------------------------

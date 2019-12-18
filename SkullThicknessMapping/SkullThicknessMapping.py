@@ -7,7 +7,6 @@ import time
 import qt
 import vtk
 import colorsys
-import math
 from slicer.ScriptedLoadableModule import *
 
 
@@ -15,6 +14,12 @@ from slicer.ScriptedLoadableModule import *
 class InterfaceTools:
     def __init__(self, parent):
         pass
+
+    @staticmethod
+    def build_vertical_space(height=24):
+        s = qt.QWidget()
+        s.setFixedSize(10, height)
+        return s
 
     @staticmethod
     def build_dropdown(title, disabled=False):
@@ -129,7 +134,7 @@ class SkullThicknessMappingState:
 class SkullThicknessMappingQuality:
     VERY_LOW = 'VERY LOW (ray every 4 dimensional units)'
     LOW = 'LOW (ray every 2 dimensional units)'
-    MEDIUM = 'MEDIUM (ray every dimensional unit)'
+    MEDIUM = 'MEDIUM (ray every 1 dimensional unit)'
     HIGH = 'HIGH (ray every 0.5 dimensional units)'
     VERY_HIGH = 'VERY HIGH (ray every 0.25 dimensional units)'
 
@@ -179,6 +184,7 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
     CONFIG_precision = 1.0
     CONFIG_rayDirection = 'L'
     CONFIG_regionOfInterest = [-50, 20]
+    CONFIG_thresholdOfEmptiness = 100
     CONFIG_minMaxAirCell = [0.0, 4.0]
     CONFIG_minMaxSkullThickness = [0.0, 8.7]
 
@@ -252,11 +258,16 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         row2.addWidget(InterfaceTools.build_radio_button(RayDirection.I, lambda: setDir(RayDirection.I), width=100))
         box.addLayout(row1)
         box.addLayout(row2)
-        layout.addRow("Ray-cast direction: ", box)
 
         # region of interest
         roiBox, setRoi = InterfaceTools.build_min_max(self.CONFIG_regionOfInterest, step=1.0, decimals=0, lb=-1000, hb=1000, units='units', min_text='Upper', max_text='Lower')
-        layout.addRow("Ray-cast region of interest: ", roiBox)
+
+        # add ray-casting box
+        group_box = qt.QGroupBox('Ray-casting')
+        group_layout = qt.QFormLayout(group_box)
+        group_layout.addRow("Cast direction: ", box)
+        group_layout.addRow("Casting bounds (along cast direction):", roiBox)
+        layout.addRow(group_box)
 
         # degrees of interest
         # TODO
@@ -281,9 +292,15 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         box = qt.QHBoxLayout()
         box.addStretch()
         box.addWidget(comboBox)
-        layout.addRow('Depth preset: ', box)
-        layout.addRow("Thickness depth: ", skullBox)
-        layout.addRow("Air cell depth: ", airCellBox)
+
+        # add ray-casting box
+        group_box = qt.QGroupBox('Depth mapping')
+        g_layout = qt.QFormLayout(group_box)
+        g_layout.addRow('Depth preset: ', box)
+        g_layout.addRow("Thickness depth: ", skullBox)
+        g_layout.addRow("Air cell depth: ", airCellBox)
+        layout.addRow(InterfaceTools.build_vertical_space())
+        layout.addRow(group_box)
 
         # quality
         comboBox = qt.QComboBox()
@@ -300,8 +317,15 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         box = qt.QHBoxLayout()
         box.addStretch()
         box.addWidget(comboBox)
-        layout.addRow("Render quality: ", box)
 
+        # add ray-casting box
+        group_box = qt.QGroupBox('Rendering')
+        g_layout = qt.QFormLayout(group_box)
+        g_layout.addRow("Render quality: ", box)
+        layout.addRow(InterfaceTools.build_vertical_space())
+        layout.addRow(group_box)
+
+        layout.addRow(InterfaceTools.build_vertical_space())
         layout.setMargin(10)
         return self.configuration_tools
 
@@ -438,6 +462,7 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
         self.state = SkullThicknessMappingState.EXECUTING
         self.update_status(text='Initializing execution..', progress=0)
         SkullThicknessMappingLogic.reset_view(self.CONFIG_rayDirection)
+        SkullThicknessMappingLogic.set_scalar_colour_bar_state(0)
         self.modelPolyData = SkullThicknessMappingLogic.process_segmentation(
             image=self.volumeSelector.currentNode(),
             update_status=self.update_status
@@ -459,9 +484,16 @@ class SkullThicknessMappingWidget(ScriptedLoadableModuleWidget):
             hit_point_list=self.hitPointList,
             ray_direction=self.CONFIG_rayDirection,
             dimensions=self.volumeSelector.currentNode().GetImageData().GetDimensions(),
+            threshold_of_emptiness=self.CONFIG_thresholdOfEmptiness,
             update_status=self.update_status
         )
-        self.thicknessColourNode, self.airCellColourNode = SkullThicknessMappingLogic.load_color_tables()
+        # SkullThicknessMappingLogic.cli_ray_cast_thickness(
+        #     polydata=self.modelPolyData,
+        #     hit_point_list=self.hitPointList,
+        #     ray_direction=self.CONFIG_rayDirection,
+        #     dimensions=self.volumeSelector.currentNode().GetImageData().GetDimensions(),
+        #     update_status=self.update_status
+        # )
         self.thicknessColourNode, self.airCellColourNode = SkullThicknessMappingLogic.build_color_tables(
             minmax_thickness=self.CONFIG_minMaxSkullThickness,
             minmax_air_cell=self.CONFIG_minMaxAirCell
@@ -613,7 +645,6 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
     @staticmethod
     def rainfall_quad_cast(polydata, dimensions, ray_direction, precision, region_of_interest, update_status):
         # configure ray direction
-        print(precision)
         dimensions = dimensions[::-1]
         negated = 1 if ray_direction in [RayDirection.R, RayDirection.A, RayDirection.S] else -1
         castIndex = None
@@ -682,6 +713,7 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         update_status(text="Top layer rendered...", progress=40)
         return modelNode
 
+    # TODO unfinished
     @staticmethod
     def cli_ray_cast_thickness(polydata, hit_point_list, ray_direction, dimensions, update_status):
         parameters = {
@@ -690,11 +722,12 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
             'ray_direction': ray_direction,
             'dimensions': dimensions
         }
-        # grayMaker = slicer.modules.grayscalemodelmaker
+        cli = slicer.modules.slicerradiomicscli
+        cliNode = slicer.cli.run(cli, parameters=parameters)
         # return slicer.cli.runSync(grayMaker, None, parameters)
 
     @staticmethod
-    def ray_cast_color_thickness(polydata, hit_point_list, ray_direction, dimensions, update_status):
+    def ray_cast_color_thickness(polydata, hit_point_list, ray_direction, dimensions, threshold_of_emptiness, update_status, gradient_scale_factor=10.0):
         # configure ray direction
         castIndex = None
         if ray_direction is RayDirection.R or ray_direction is RayDirection.L: castIndex = 0
@@ -710,29 +743,38 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         update_status(text="Calculating thickness (may take long)...", progress=82); startTime = time.time()
         skullThicknessScalarArray = vtk.vtkUnsignedCharArray()
         skullThicknessScalarArray.SetName(SkullThicknessMappingType.THICKNESS)
-        # skullThicknessScalarArray.SetNumberOfComponents(3)
         airCellScalarArray = vtk.vtkUnsignedCharArray()
         airCellScalarArray.SetName(SkullThicknessMappingType.AIR_CELL)
 
         def calculateDistance(point1, point2):
             d = numpy.linalg.norm(numpy.array((point1[0], point1[1], point1[2])) - numpy.array((point2[0], point2[1], point2[2])))
-            d = d * 10  # TODO increase precision
+            d = d*gradient_scale_factor
             return d
+
+        def interpretPoints(points_of_intersection, mode):
+            if mode is SkullThicknessMappingType.THICKNESS:
+                class block:
+                    entry = None
+                    exit = None
+                # segment to entry/exits (no even # of points)
+                # for i in range(int(numpy.ceil(points_of_intersection.GetNumberOfPoints()/2.0))):
+                # look for the largest, exit to next entry point.
+                # ignore at threshold_of_emptiness
+                # calculate distance
+                return calculateDistance(points_of_intersection.GetPoint(0), points_of_intersection.GetPoint(points_of_intersection.GetNumberOfPoints()-1))
+            elif mode is SkullThicknessMappingType.AIR_CELL:
+                return calculateDistance(points_of_intersection.GetPoint(0), points_of_intersection.GetPoint(1))
 
         pointsOfIntersection, cellsOfIntersection = vtk.vtkPoints(), vtk.vtkIdList()
         for i, hitPoint in enumerate(hit_point_list):
             stretchFactor = dimensions[castIndex]
             start = [hitPoint.point[0] + hitPoint.normal[0]*stretchFactor, hitPoint.point[1] + hitPoint.normal[1]*stretchFactor, hitPoint.point[2] + hitPoint.normal[2]*stretchFactor]
             end = [hitPoint.point[0] - hitPoint.normal[0]*stretchFactor, hitPoint.point[1] - hitPoint.normal[1]*stretchFactor, hitPoint.point[2] - hitPoint.normal[2]*stretchFactor]
-            res = bspTree.IntersectWithLine(start, end, 0, pointsOfIntersection, cellsOfIntersection)
+            bspTree.IntersectWithLine(start, end, 0, pointsOfIntersection, cellsOfIntersection)
             if pointsOfIntersection.GetNumberOfPoints() < 2: continue
-
-            skullThickness = calculateDistance(pointsOfIntersection.GetPoint(0), pointsOfIntersection.GetPoint(pointsOfIntersection.GetNumberOfPoints()-1))
-            skullThicknessScalarArray.InsertTuple1(hitPoint.pid, skullThickness)
-
-            airCellThickness = calculateDistance(pointsOfIntersection.GetPoint(0), pointsOfIntersection.GetPoint(1))
-            airCellScalarArray.InsertTuple1(hitPoint.pid, airCellThickness)
-
+            skullThicknessScalarArray.InsertTuple1(hitPoint.pid, interpretPoints(pointsOfIntersection, SkullThicknessMappingType.THICKNESS))
+            airCellScalarArray.InsertTuple1(hitPoint.pid, interpretPoints(pointsOfIntersection, SkullThicknessMappingType.AIR_CELL))
+            # update rays casted status
             if i%500 == 0: update_status(text="Calculating thickness (~" + str(i) + ' rays)', progress=82 + int(round((i*1.0/total*1.0)*18.0)))
         update_status(text="Finished thickness calculation in " + str("%.1f" % (time.time() - startTime)) + "s...", progress=100)
         return skullThicknessScalarArray, airCellScalarArray
@@ -759,21 +801,20 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
         return table
 
     @staticmethod
-    def build_color_tables(minmax_thickness, minmax_air_cell):
-        precision = 10.0
+    def build_color_tables(minmax_thickness, minmax_air_cell, gradient_scale_factor=10.0):
         def calculateAndSetColor(table, i, hue=0.0, sat=1.0, val=1.0):
             rgb = colorsys.hsv_to_rgb(hue, sat, val)
-            table.SetColor(i, str(i/precision) + ' mm', rgb[0], rgb[1], rgb[2], 1.0)
+            table.SetColor(i, str(i/gradient_scale_factor) + ' mm', rgb[0], rgb[1], rgb[2], 1.0)
         def p(lhs, rhs, base, right_mod=1.0):
             return float(lhs-base)/float((rhs-base)*right_mod)
 
         # thickness table
-        ix = [int(i) for i in [minmax_thickness[0]*precision, (minmax_thickness[1])*precision + 1]]
+        ix = [int(i) for i in [minmax_thickness[0]*gradient_scale_factor, (minmax_thickness[1])*gradient_scale_factor + 1]]
         thicknessTable = SkullThicknessMappingLogic.build_color_table('ThicknessColorMap', ix[-1])
         for i in range(ix[0], ix[-1]): calculateAndSetColor(thicknessTable, i, hue=p(i, ix[-1], ix[0]) * 0.278, sat=0.9, val=0.9)
 
         # air cell table
-        ix = [int(i) for i in [minmax_air_cell[0]*precision, (minmax_air_cell[1])*precision + 1]]
+        ix = [int(i) for i in [minmax_air_cell[0]*gradient_scale_factor, (minmax_air_cell[1])*gradient_scale_factor + 1]]
         airCellTable = SkullThicknessMappingLogic.build_color_table('AirCellColorMap', ix[-1])
         for i in range(ix[0], ix[-1]): calculateAndSetColor(airCellTable, i, hue=0.696 - p(i, ix[-1], ix[0]) * 0.571, sat=0.9, val=0.9)
 
@@ -782,11 +823,11 @@ class SkullThicknessMappingLogic(ScriptedLoadableModuleLogic):
     @staticmethod
     def set_scalar_colour_bar_state(state, color_node_id=None):
         colorWidget = slicer.modules.colors.widgetRepresentation()
-        slicer.util.findChildren(colorWidget, name='VTKScalarBar')[0].setDisplay(state)
-        # ctkScalarBarWidget.SetLabelFormat('%8.f00')
+        ctkBar = slicer.util.findChildren(colorWidget, name='VTKScalarBar')[0]
+        ctkBar.setDisplay(state)
         if state is 0 or color_node_id is None: return
         slicer.util.findChildren(colorWidget, 'ColorTableComboBox')[0].setCurrentNodeID(color_node_id)
-        slicer.util.findChildren(colorWidget, 'UseColorNameAsLabelCheckBox')[0].isChecked()
+        slicer.util.findChildren(colorWidget, 'UseColorNameAsLabelCheckBox')[0].setChecked(True)
 
     # @staticmethod
     # def polydata_to_polygons(polydata, update_status):

@@ -5,12 +5,14 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f08bb156-2c28-4f65-9fa3-faa143f298d2" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/SkullThicknessMappingCLI/SkullThicknessMappingCLI.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SkullThicknessMappingCLI/SkullThicknessMappingCLI.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/CMakeLists.txt" beforeDir="false" afterPath="$PROJECT_DIR$/CMakeLists.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/DeepLearningPreProcessModule/DeepLearningPreProcessModule.py" beforeDir="false" afterPath="$PROJECT_DIR$/DeepLearningPreProcessModule/DeepLearningPreProcessModule.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/SkullThicknessMapping/SkullThicknessMapping.py" beforeDir="false" afterPath="$PROJECT_DIR$/SkullThicknessMapping/SkullThicknessMapping.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SkullThicknessMappingCLI/CMakeLists.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/SkullThicknessMappingCLI/SkullThicknessMappingCLI.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/SkullThicknessMappingCLI/SkullThicknessMappingCLI.xml" beforeDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -151,7 +153,9 @@
       <workItem from="1573578596200" duration="321000" />
       <workItem from="1573578929211" duration="12000" />
       <workItem from="1573672535122" duration="9108000" />
-      <workItem from="1574094300165" duration="16529000" />
+      <workItem from="1574094300165" duration="23417000" />
+      <workItem from="1574870672367" duration="22000" />
+      <workItem from="1574870828471" duration="14606000" />
     </task>
     <servers />
   </component>
