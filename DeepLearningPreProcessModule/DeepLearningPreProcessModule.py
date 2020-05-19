@@ -246,9 +246,9 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         self.rigidApplyButton.connect('clicked(bool)', self.click_rigid_apply)
 
     def init_crop_and_transform(self):
-        self.cropStartButton = qt.QPushButton("Choose\n ROI")
+        self.cropStartButton = qt.QPushButton("Choose ROI")
         self.cropStartButton.connect('clicked(bool)', self.click_crop_start)
-        self.cropAcceptButton = qt.QPushButton("Accept, Crop, \nand Transform IJK-RAS")
+        self.cropAcceptButton = qt.QPushButton("Finalize ROI\nand Convert to RAS")
         self.cropAcceptButton.connect('clicked(bool)', self.click_crop_accept)
         self.cropAcceptButton.visible = False
 
@@ -355,7 +355,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         return section
 
     def build_crop_tools(self):
-        section = InterfaceTools.build_dropdown("ROI Crop and Transform", disabled=True)
+        section = InterfaceTools.build_dropdown("Finalization ROI Transform", disabled=True)
         layout = qt.QVBoxLayout(section)
         layout.addWidget(qt.QLabel("Description"))
         layout.addWidget(self.cropAcceptButton)
@@ -594,10 +594,12 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         DeepLearningPreProcessModuleLogic.attempt_abort_rigid_registration(self.elastixLogic)
 
     def click_crop_start(self):
+        # cropParams = slicer.vtkMRMLCropVolumeParametersNode()
         cropParams = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLCropVolumeParametersNode')
         self.roiNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLAnnotationROINode')
         cropParams.SetInputVolumeNodeID(self.movingSelector.currentNode().GetID())
         cropParams.SetROINodeID(self.roiNode.GetID())
+        # slicer.modules.cropvolume.logic().SnapROIToVoxelGrid(cropParams)
         slicer.modules.cropvolume.logic().FitROIToInputVolume(cropParams)
 
         self.isCropping = True
