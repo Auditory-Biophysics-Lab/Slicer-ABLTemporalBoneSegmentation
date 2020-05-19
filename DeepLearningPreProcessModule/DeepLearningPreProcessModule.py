@@ -109,6 +109,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
     intermediateNode = None
     sectionsList = []
     elastixLogic = Elastix.ElastixLogic()
+    roiNode = None
 
     # UI members -------------- (in order of appearance)
     clearMarkupsCheckbox = None
@@ -138,6 +139,10 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
     rigidApplyButton = None
     rigidCancelButton = None
 
+    isCropping = False
+    cropStartButton = False
+    cropAcceptButton = False
+
     # initialization ------------------------------------------------------------------------------
     def __init__(self, parent):
         ScriptedLoadableModuleWidget.__init__(self, parent)
@@ -145,6 +150,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         self.init_resample_tools()
         self.init_fiducial_registration()
         self.init_rigid_registration()
+        self.init_crop_and_transform()
 
     def init_volume_tools(self):
         self.clearMarkupsCheckbox = qt.QCheckBox("Clear All Markups When Loading New Input Volume")
@@ -239,6 +245,13 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         self.rigidApplyButton = qt.QPushButton("Apply\n Rigid Registration")
         self.rigidApplyButton.connect('clicked(bool)', self.click_rigid_apply)
 
+    def init_crop_and_transform(self):
+        self.cropStartButton = qt.QPushButton("Choose\n ROI")
+        self.cropStartButton.connect('clicked(bool)', self.click_crop_start)
+        self.cropAcceptButton = qt.QPushButton("Accept, Crop, \nand Transform IJK-RAS")
+        self.cropAcceptButton.connect('clicked(bool)', self.click_crop_accept)
+        self.cropAcceptButton.visible = False
+
     # UI build ------------------------------------------------------------------------------
     def setup(self):
         ScriptedLoadableModuleWidget.setup(self)
@@ -246,16 +259,10 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         self.sectionsList.append(self.build_resample_tools())
         self.sectionsList.append(self.build_fiducial_registration())
         self.sectionsList.append(self.build_rigid_registration())
+        self.sectionsList.append(self.build_crop_tools())
         for s in self.sectionsList: self.layout.addWidget(s)
         self.layout.addStretch()
         self.update_slicer_view()
-
-        # testing TODO remove
-        # slicer.mrmlScene.Clear()
-        # path = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Testing/1512R_Clinical_Aligned_Test_Input.nrrd"
-        # node = slicer.util.loadVolume(path, returnNode=True)[1]
-        # self.inputSelector.setCurrentNode(node)
-        # end testing area
 
     def build_volume_tools(self):
         section = InterfaceTools.build_dropdown("Volume Tools")
@@ -344,6 +351,15 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         layout.addWidget(self.rigidApplyButton)
         layout.addWidget(self.rigidProgress)
         layout.addWidget(self.rigidCancelButton)
+        layout.setMargin(10)
+        return section
+
+    def build_crop_tools(self):
+        section = InterfaceTools.build_dropdown("ROI Crop and Transform", disabled=True)
+        layout = qt.QVBoxLayout(section)
+        layout.addWidget(qt.QLabel("Description"))
+        layout.addWidget(self.cropAcceptButton)
+        layout.addWidget(self.cropStartButton)
         layout.setMargin(10)
         return section
 
@@ -446,9 +462,14 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
             self.rigidStatus.setPalette(p)
         slicer.app.processEvents()  # force update
 
+    def update_crop_buttons(self):
+        self.cropStartButton.visible = not self.isCropping
+        self.cropAcceptButton.visible = self.isCropping
+
     # ui button actions ------------------------------------------------------------------------------
     def click_input_selector(self, validity):
-        if not validity and self.inputSelector.currentNode() is None: return self.update_sections_enabled(enabled=False)
+        self.update_sections_enabled(validity)
+        if not validity and self.inputSelector.currentNode() is None: return
         # check for auto side selection
         s = re.search("\d+\w_", self.inputSelector.currentNode().GetName())
         if s is not None:
@@ -467,11 +488,13 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         if force: self.rightBoneCheckBox.setChecked(True)
         if self.rightBoneCheckBox.isChecked(): self.leftBoneCheckBox.setChecked(False)
         if not force: self.check_input_complete()
+        self.update_sections_enabled(self.rightBoneCheckBox.isChecked() or self.leftBoneCheckBox.isChecked())
 
     def click_left_bone(self, force=False):
         if force: self.leftBoneCheckBox.setChecked(True)
         if self.leftBoneCheckBox.isChecked(): self.rightBoneCheckBox.setChecked(False)
         if not force: self.check_input_complete()
+        self.update_sections_enabled(self.rightBoneCheckBox.isChecked() or self.leftBoneCheckBox.isChecked())
 
     def click_moving_selector(self, validity):
         if validity: self.update_slicer_view()
@@ -549,7 +572,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         self.process_transform(function, set_moving_volume=True)
 
     def click_rigid_apply(self):
-        def function():
+        def transform():
             p = qt.QPalette()
             p.setColor(qt.QPalette.WindowText, qt.Qt.gray)
             self.rigidStatus.setPalette(p)
@@ -562,13 +585,51 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
                                                                                         moving_node=self.movingSelector.currentNode(),
                                                                                         mask_node=self.maskNode,
                                                                                         log_callback=self.update_rigid_progress)
-        self.process_transform(function, corresponding_button=self.rigidApplyButton, set_moving_volume=True)
+        self.process_transform(transform, corresponding_button=self.rigidApplyButton, set_moving_volume=True)
 
     def click_rigid_cancel(self):
         self.rigidProgress.value = 0
         self.rigidProgress.visible = False
         self.rigidCancelButton.visible = False
         DeepLearningPreProcessModuleLogic.attempt_abort_rigid_registration(self.elastixLogic)
+
+    def click_crop_start(self):
+        cropParams = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLCropVolumeParametersNode')
+        self.roiNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLAnnotationROINode')
+        cropParams.SetInputVolumeNodeID(self.movingSelector.currentNode().GetID())
+        cropParams.SetROINodeID(self.roiNode.GetID())
+        slicer.modules.cropvolume.logic().FitROIToInputVolume(cropParams)
+
+        self.isCropping = True
+        self.update_crop_buttons()
+
+    def click_crop_accept(self):
+        def transform():
+            # copy input
+            outputVolumeNode = slicer.vtkMRMLScalarVolumeNode()
+            outputVolumeNode.Copy(self.movingSelector.currentNode())
+            outputVolumeNode.SetName(self.movingSelector.currentNode().GetName() + "_Crop")
+            slicer.mrmlScene.AddNode(outputVolumeNode)
+
+            # build and apply crop params
+            cropParams = slicer.vtkMRMLCropVolumeParametersNode()
+            cropParams.SetScene(slicer.mrmlScene)
+            cropParams.SetIsotropicResampling(False)
+            cropParams.SetInterpolationMode(2)
+            cropParams.SetFillValue(-3000)
+            # cropParams.SetSpacingScalingConst(0.5)
+            cropParams.SetInputVolumeNodeID(self.movingSelector.currentNode().GetID())
+            cropParams.SetROINodeID(self.roiNode.GetID())
+            cropParams.SetOutputVolumeNodeID(outputVolumeNode.GetID())
+            slicer.modules.cropvolume.logic().Apply(cropParams)
+
+            # remove ROI
+            slicer.mrmlScene.RemoveNode(self.roiNode)
+            self.roiNode = None
+            return outputVolumeNode
+        self.process_transform(transform, set_moving_volume=True)
+        self.isCropping = False
+        self.update_crop_buttons()
 
 
 # Main Logic
@@ -743,15 +804,3 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
         if dialog.exec_() != qt.QDialog.Accepted: return
         o = slicer.util.saveNode(node=node, filename=dialog.selectedFiles()[0] + next(t for t in supportedSaveTypes if t["title"] == dialog.selectedNameFilter())['value'])
 
-
-# Testing
-class DeepLearningPreProcessModuleTest(ScriptedLoadableModuleTest):
-    def setUp(self):
-        slicer.mrmlScene.Clear(0)
-
-    def runTest(self):
-        self.setUp()
-        self.test_DeepLearningPreProcessModule1()
-
-    def test_DeepLearningPreProcessModule1(self):
-        pass
