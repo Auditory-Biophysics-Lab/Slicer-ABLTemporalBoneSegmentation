@@ -673,7 +673,7 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
             atlasNode = slicer.util.loadVolume(framePath + 'Atlas_' + side_indicator + '.mha', returnNode=True)[1]
             atlasNode.HideFromEditorsOn()
         if atlasFiducialNode is None:
-            atlasFiducialNode = slicer.util.loadMarkupsFiducialList(framePath + 'Fiducial_' + side_indicator + '.fcsv', returnNode=True)[1]
+            atlasFiducialNode = slicer.util.loadMarkups(framePath + 'Fiducial_' + side_indicator + '.fcsv')
             atlasFiducialNode.SetName('Atlas_' + side_indicator + ' Fiducials')
             atlasFiducialNode.SetLocked(True)
             atlasFiducialNode.HideFromEditorsOn()
