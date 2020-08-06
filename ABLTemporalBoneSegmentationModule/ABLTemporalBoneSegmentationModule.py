@@ -1,5 +1,12 @@
 import inspect
+import json
+import os
+import queue
+import threading
+import traceback
 import re
+import shutil
+import sys
 
 import ctk
 import qt
@@ -7,7 +14,15 @@ import slicer
 import SimpleITK as sitk
 import sitkUtils as sitku
 import Elastix
+import urllib3
+import requests
+import slicer
+import vtk
 from slicer.ScriptedLoadableModule import *
+from ablinfer.slicer import SlicerDispatchDocker, SlicerDispatchRemote
+from ablinfer.constants import DispatchStage
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 supportedResampleInterpolations = [
     {'title': 'Linear', 'value': sitk.sitkLinear},
@@ -32,15 +47,28 @@ supportedSaveTypes = [
     # {'title': 'DICOM (*.dicom)', 'value': '.dicom'},
 ]
 
+cameraPresets = {
+    "Surgical View": {
+        "focal_point": [1.30155, -2.36208, -9.59472],
+        "position": [-157.31838515500013, -8.919813181999999, -22.945672208000005],
+        "view_up": [-0.08177871416474142, 0.8175431416051515, 0.5700310987340435],
+    },
+
+    "Lateral View": {
+        "focal_point": [-0.606437, 3.52796, -15.5742],
+        "position": [-35.28269323, 101.86386139999993, 64.821346],
+        "view_up": [0.27978395332182837, -0.5466109088053568, 0.7892638683219897],
+    },
+}
 
 # Main Initialization & Info
-class DeepLearningPreProcessModule(ScriptedLoadableModule):
+class ABLTemporalBoneSegmentationModule(ScriptedLoadableModule):
     def __init__(self, parent):
         ScriptedLoadableModule.__init__(self, parent)
-        self.parent.title = "Temporal Bone Deep-Learning Pre-Process"
+        self.parent.title = "ABL Temporal Bone Segmentation"
         self.parent.categories = ["Otolaryngology"]
         self.parent.dependencies = []
-        self.parent.contributors = ["Luke Helpard (Western University) and Evan Simpson (Western University)"]
+        self.parent.contributors = ["Luke Helpard (Western University), Evan Simpson (Western University), and Ben Connors (Western University)"]
         self.parent.helpText = "Version 1.0-2019.11.1\n" + self.getDefaultModuleDocumentationLink()
         self.parent.acknowledgementText = "This module was originally developed by Evan Simpson at The University of Western Ontario in the HML/SKA Auditory Biophysics Lab."
 
@@ -98,7 +126,7 @@ class InterfaceTools:
 
 
 # User Interface Build
-class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
+class ABLTemporalBoneSegmentationModuleWidget(ScriptedLoadableModuleWidget):
     # Data members --------------
     # TODO Comment
     atlasNode = None
@@ -142,18 +170,46 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
     isCropping = False
     cropStartButton = False
     cropAcceptButton = False
+    
+    inferStatus = None
+    inferSource = None
+    inferDockerWidget = None
+    inferDockerHost = None
+    inferServerWidget = None
+    inferServerHost = None
+    inferServerUsername = None
+    inferServerPassword = None
+    inferRunWidget = None
+    inferProgressMajor = None
+    inferProgressMinor = None
+    inferApplyButton = None
+    inferExportButton = None
+    inferSegmentation = None
+    _infer_last_run_progress = 0
+
+    renderVolumeNode = None
+    renderVolumePreset = "CT-AAA2"
+    renderVolumePropertyWidget = None
+    renderVolumeCheckbox = None
+    renderVolumeWidget = None
+    renderVolumeOpacitySlider = None
+    renderVolumeShiftSlider = None
+    renderVolumeShiftPrevious = 0.5
 
     # initialization ------------------------------------------------------------------------------
     def __init__(self, parent):
         ScriptedLoadableModuleWidget.__init__(self, parent)
         self.init_volume_tools()
-        self.init_resample_tools()
         self.init_fiducial_registration()
         self.init_rigid_registration()
         self.init_crop_and_transform()
+        self.init_infer_tools()
+        self.init_render_tools()
+        self.init_resample_tools()
 
     def init_volume_tools(self):
         self.clearMarkupsCheckbox = qt.QCheckBox("Clear All Markups When Loading New Input Volume")
+        self.clearMarkupsCheckbox.enabled = True
         self.inputSelector = slicer.qMRMLNodeComboBox()
         self.inputSelector.nodeTypes = ["vtkMRMLScalarVolumeNode"]
         self.inputSelector.addEnabled = False
@@ -252,14 +308,91 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         self.cropAcceptButton.connect('clicked(bool)', self.click_crop_accept)
         self.cropAcceptButton.visible = False
 
+    def init_infer_tools(self):
+        self.inferStatus = qt.QLabel("Status:")
+        p = qt.QPalette()
+        p.setColor(qt.QPalette.WindowText, qt.Qt.gray)
+        self.inferStatus.setPalette(p)
+        self.inferProgressMajor = qt.QProgressBar()
+        self.inferProgressMajor.minimum = 0
+        self.inferProgressMajor.maximum = 100
+        self.inferProgressMajor.value = 0
+        self.inferProgressMajor.setFormat("Overall: %p%")
+        self.inferProgressMinor = qt.QProgressBar()
+        self.inferProgressMinor.minimum = 0
+        self.inferProgressMinor.maximum = 100
+        self.inferProgressMinor.value = 0
+        self.inferProgressMinor.setFormat("Current Step: %p%")
+
+        self.inferRunWidget = qt.QWidget()
+
+        self.inferSource = qt.QCheckBox("Run on a remote server?")
+        self.inferDockerWidget = qt.QWidget()
+        self.inferDockerLabel = qt.QLabel("Input the location of the Docker server to use. You can usually leave this blank.")
+        self.inferDockerLabel.setWordWrap(True)
+        
+        ## We want to pull the config values from settings where possible
+        settings = slicer.app.settings()
+        self.inferDockerHost = qt.QLineEdit()
+        self.inferDockerHost.text = settings.value("ablinfer_docker_host") or ""
+
+        self.inferServerWidget = qt.QWidget()
+        self.inferServerLabel = qt.QLabel("Input the address of the ABLInfer server to use. Example: http://examplesite.com:5000/")
+        self.inferServerLabel.setWordWrap(True)
+        self.inferServerPassword = qt.QLineEdit()
+        self.inferServerUsername = qt.QLineEdit()
+
+        self.inferServerHost = qt.QLineEdit()
+
+        self.inferServerHost.text = settings.value("ablinfer_server_host") or "https://example.com:5000"
+        self.inferServerPassword.text = settings.value("ablinfer_server_password") or ""
+        self.inferServerUsername.text = settings.value("ablinfer_server_username") or ""
+
+        self.inferApplyButton = qt.QPushButton("Run Inference")
+        self.inferApplyButton.connect('clicked(bool)', self.click_infer_apply)
+
+        self.inferExportButton = qt.QPushButton("Export for CardinalSim")
+        self.inferExportButton.enabled = False
+        self.inferExportButton.connect("clicked(bool)", self.click_infer_export)
+
+    def init_render_tools(self):
+        self.renderVolumeCheckbox = qt.QCheckBox("Render the moving volume")
+        self.renderVolumeCheckbox.connect('toggled(bool)', self.click_render_volume)
+
+        self.renderVolumeWidget = qt.QWidget()
+        layout = qt.QFormLayout(self.renderVolumeWidget)
+        l = qt.QLabel("Use the following two sliders to control the volume visualization. More advanced options are available in the \"Volume Rendering\" module.")
+        l.setWordWrap(True)
+        layout.addRow(l)
+
+        self.renderVolumeOpacitySlider = ctk.ctkDoubleSlider()
+        self.renderVolumeOpacitySlider.singleStep = 0.01
+        self.renderVolumeOpacitySlider.maximum = 1
+        self.renderVolumeOpacitySlider.minimum = 0
+        self.renderVolumeOpacitySlider.value = 1
+        self.renderVolumeOpacitySlider.orientation = qt.Qt.Horizontal
+        self.renderVolumeOpacitySlider.connect("valueChanged(double)", self.move_render_opacity)
+        layout.addRow("Opacity:", self.renderVolumeOpacitySlider)
+
+        self.renderVolumeShiftSlider = ctk.ctkDoubleSlider()
+        self.renderVolumeShiftSlider.singleStep = 0.1
+        self.renderVolumeShiftSlider.maximum = 1
+        self.renderVolumeShiftSlider.minimum = 0
+        self.renderVolumeShiftSlider.value = 0.5
+        self.renderVolumeShiftSlider.orientation = qt.Qt.Horizontal
+        self.renderVolumeShiftSlider.connect("valueChanged(double)", self.move_render_shift)
+        layout.addRow("Bone/Tissue Shift:", self.renderVolumeShiftSlider)
+
     # UI build ------------------------------------------------------------------------------
     def setup(self):
         ScriptedLoadableModuleWidget.setup(self)
         self.sectionsList.append(self.build_volume_tools())
-        self.sectionsList.append(self.build_resample_tools())
         self.sectionsList.append(self.build_fiducial_registration())
         self.sectionsList.append(self.build_rigid_registration())
         self.sectionsList.append(self.build_crop_tools())
+        self.sectionsList.append(self.build_infer_tools())
+        self.sectionsList.append(self.build_render_tools())
+        self.sectionsList.append(self.build_resample_tools())
         for s in self.sectionsList: self.layout.addWidget(s)
         self.layout.addStretch()
         self.update_slicer_view()
@@ -290,7 +423,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         return section
 
     def build_resample_tools(self):
-        section = InterfaceTools.build_dropdown("Spacing Resample Tools", disabled=True)
+        section = InterfaceTools.build_dropdown("(ADVANCED) Spacing Resample Tools", disabled=True)
         # presets
         presets = qt.QWidget()
         layout = qt.QVBoxLayout(presets)
@@ -330,7 +463,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         return section
 
     def build_fiducial_registration(self):
-        section = InterfaceTools.build_dropdown("Fiducial Registration", disabled=True)
+        section = InterfaceTools.build_dropdown("Step 1. Fiducial Registration", disabled=True)
         layout = qt.QVBoxLayout(section)
         layout.addWidget(qt.QLabel("Set at least 3 fiducials. Setting more yields better results."))
         layout.addWidget(self.fiducialTabs)
@@ -344,7 +477,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         return section
 
     def build_rigid_registration(self):
-        section = InterfaceTools.build_dropdown("Rigid Registration", disabled=True)
+        section = InterfaceTools.build_dropdown("Step 2. Rigid Registration", disabled=True)
         layout = qt.QVBoxLayout(section)
         layout.addWidget(qt.QLabel("Parameters: Elastix Rigid Registration"))
         layout.addWidget(self.rigidStatus)
@@ -355,12 +488,64 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         return section
 
     def build_crop_tools(self):
-        section = InterfaceTools.build_dropdown("Finalization ROI Transform", disabled=True)
+        section = InterfaceTools.build_dropdown("Step 3. Finalization ROI Transform", disabled=True)
         layout = qt.QVBoxLayout(section)
-        layout.addWidget(qt.QLabel("Description"))
+        layout.addWidget(qt.QLabel("Select the region of interest and finalize the transform for inference."))
         layout.addWidget(self.cropAcceptButton)
         layout.addWidget(self.cropStartButton)
         layout.setMargin(10)
+        return section
+
+    def build_infer_tools(self):
+        section = InterfaceTools.build_dropdown("Step 4. Inference", disabled=True)
+        layout = qt.QVBoxLayout(section)
+        layout.addWidget(self.inferSource)
+        self.inferSource.connect("stateChanged(int)", self.click_infer_source)
+
+        dl = qt.QFormLayout(self.inferDockerWidget)
+        dl.addRow("Docker Host:", self.inferDockerHost)
+        dl.addRow(self.inferDockerLabel)
+        layout.addWidget(self.inferDockerWidget)
+
+        sl = qt.QFormLayout(self.inferServerWidget)
+        sl.addRow("Server:", self.inferServerHost)
+        sl.addRow("Username:", self.inferServerUsername)
+        sl.addRow("Password:", self.inferServerPassword)
+        sl.addRow(self.inferServerLabel)
+        layout.addWidget(self.inferServerWidget)
+        self.inferServerWidget.visible = False
+
+        rl = qt.QVBoxLayout(self.inferRunWidget)
+        rl.addWidget(self.inferStatus)
+        rl.addWidget(self.inferProgressMajor)
+        rl.addWidget(self.inferProgressMinor)
+        layout.addWidget(self.inferRunWidget)
+        self.inferRunWidget.visible = False
+
+        layout.addWidget(self.inferApplyButton)
+        layout.addWidget(self.inferExportButton)
+        layout.setMargin(10)
+        self.click_infer_source(0)
+
+        return section
+
+    def build_render_tools(self):
+        section = InterfaceTools.build_dropdown("Step 5. Rendering", disabled=True)
+        layout = qt.QVBoxLayout(section)
+        layout.addWidget(self.renderVolumeCheckbox)
+        layout.addWidget(self.renderVolumeWidget)
+        self.renderVolumeWidget.setVisible(False)
+        b = qt.QPushButton("Reset to 3D View")
+        b.connect("clicked(bool)", self.switch_to_3dview)
+        layout.addWidget(b)
+        for preset in sorted(cameraPresets):
+            b = qt.QPushButton("Switch Camera to %s" % preset)
+            b.connect("clicked(bool)", lambda *args, p=preset: self.choose_render_view(p))
+            layout.addWidget(b)
+        b = qt.QPushButton("(Advanced) Switch to Volume Rendering Module")
+        b.connect("clicked(bool)", lambda: slicer.util.selectModule("VolumeRendering"))
+        layout.addWidget(b)
+
         return section
 
     # state checking ------------------------------------------------------------------------------
@@ -378,16 +563,16 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         # check if side has been switched
         if self.atlasNode is not None and not self.atlasNode.GetName().startswith('Atlas_' + side_indicator):
             self.atlasNode = self.atlasFiducialNode = self.inputFiducialNode = None
-        if self.clearMarkupsCheckbox.isChecked(): DeepLearningPreProcessModuleLogic.clear_all_markups_from_scene()
+        if self.clearMarkupsCheckbox.isChecked(): ABLTemporalBoneSegmentationModuleLogic.clear_all_markups_from_scene()
         # check if we need an atlas imported
-        self.atlasNode, self.atlasFiducialNode, self.maskNode = DeepLearningPreProcessModuleLogic().load_atlas_and_fiducials_and_mask(side_indicator)
-        self.inputFiducialNode, self.fiducialSet = DeepLearningPreProcessModuleLogic().initialize_fiducial_set(self.atlasFiducialNode, self.fiducialPlacer, name=self.inputSelector.currentNode().GetName())
+        self.atlasNode, self.atlasFiducialNode, self.maskNode = ABLTemporalBoneSegmentationModuleLogic().load_atlas_and_fiducials_and_mask(side_indicator)
+        self.inputFiducialNode, self.fiducialSet = ABLTemporalBoneSegmentationModuleLogic().initialize_fiducial_set(self.atlasFiducialNode, self.fiducialPlacer, name=self.inputSelector.currentNode().GetName())
         self.fiducialTabs.clear()
         for f in self.fiducialSet:
             tab, f["table"] = InterfaceTools.build_fiducial_tab(f, self.click_fiducial_set_button, self.click_fiducial_clear_button)
             self.fiducialTabs.addTab(tab, f["label"])
         # set spacing
-        spacing = DeepLearningPreProcessModuleLogic().get_um_spacing(self.inputSelector.currentNode().GetSpacing())
+        spacing = ABLTemporalBoneSegmentationModuleLogic().get_um_spacing(self.inputSelector.currentNode().GetSpacing())
         self.resampleInfoLabel.text = "The input volume was imported with a spacing of (X: " + str(spacing[0]) + "um,  Y: " + str(spacing[1]) + "um,  Z: " + str(spacing[2]) + "um)"
 
     def initialize_moving_volume(self):
@@ -400,7 +585,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         self.movingSelector.setCurrentNode(self.inputSelector.currentNode())
         self.movingSelector.enabled = True
         self.movingSaveButton.enabled = True
-        spacing = DeepLearningPreProcessModuleLogic().get_um_spacing(self.movingSelector.currentNode().GetSpacing())
+        spacing = ABLTemporalBoneSegmentationModuleLogic().get_um_spacing(self.movingSelector.currentNode().GetSpacing())
         self.resampleSpacingXBox.value, self.resampleSpacingYBox.value, self.resampleSpacingZBox.value = spacing[0], spacing[1], spacing[2]
 
     def process_transform(self, function, corresponding_button=None, set_moving_volume=False):
@@ -431,7 +616,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         moving = self.intermediateNode.GetID() if self.intermediateNode is not None else self.movingSelector.currentNode().GetID() if self.movingSelector.currentNode() is not None else None
         atlas = self.atlasNode.GetID() if self.atlasNode is not None else None
         overlayOpacity = 0.4 if self.fiducialAtlasOverlay.isChecked() else 0
-        DeepLearningPreProcessModuleLogic.update_slicer_view(moving, atlas, overlayOpacity)
+        ABLTemporalBoneSegmentationModuleLogic.update_slicer_view(moving, atlas, overlayOpacity)
 
     def update_fiducial_table(self):
         completed = 0
@@ -451,7 +636,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
 
     def update_rigid_progress(self, text):
         print(text)
-        progress = DeepLearningPreProcessModuleLogic.process_rigid_progress(text)
+        progress = ABLTemporalBoneSegmentationModuleLogic.process_rigid_progress(text)
         self.rigidStatus.text = 'Status: ' + ((text[:60] + '..') if len(text) > 60 else text)
         if progress is not None: self.rigidProgress.value = progress
         if progress is 100:
@@ -484,30 +669,30 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         for i in range(logic.GetNumberOfItems()): logic.GetItemAsObject(i).FitSliceToAll()
         if self.fiducialSet is not None and len(self.fiducialSet) > 0: self.click_fiducial_tab(self.fiducialTabs.currentIndex)
 
-    def click_right_bone(self, force=False):
+    def click_right_bone(self, val=True, force=False):
         if force: self.rightBoneCheckBox.setChecked(True)
         if self.rightBoneCheckBox.isChecked(): self.leftBoneCheckBox.setChecked(False)
         if not force: self.check_input_complete()
-        self.update_sections_enabled(self.rightBoneCheckBox.isChecked() or self.leftBoneCheckBox.isChecked())
+        self.update_sections_enabled(self.inputSelector.currentNode() is not None and (self.rightBoneCheckBox.isChecked() or self.leftBoneCheckBox.isChecked()))
 
-    def click_left_bone(self, force=False):
+    def click_left_bone(self, val=True, force=False):
         if force: self.leftBoneCheckBox.setChecked(True)
         if self.leftBoneCheckBox.isChecked(): self.rightBoneCheckBox.setChecked(False)
         if not force: self.check_input_complete()
-        self.update_sections_enabled(self.rightBoneCheckBox.isChecked() or self.leftBoneCheckBox.isChecked())
+        self.update_sections_enabled(self.inputSelector.currentNode() is not None and (self.rightBoneCheckBox.isChecked() or self.leftBoneCheckBox.isChecked()))
 
     def click_moving_selector(self, validity):
         if validity: self.update_slicer_view()
 
     def click_save_moving(self):
-        DeepLearningPreProcessModuleLogic.open_save_node_dialog(self.movingSelector.currentNode())
+        ABLTemporalBoneSegmentationModuleLogic.open_save_node_dialog(self.movingSelector.currentNode())
 
     def click_resample_volume(self):
         def function():
             if self.resampleTabBox.currentIndex == 0: spacing = supportedResamplePresets[self.resamplePresetBox.currentIndex]['value']
             else: spacing = [self.resampleSpacingXBox.value, self.resampleSpacingYBox.value, self.resampleSpacingZBox.value]
             spacing = [float(i)/1000 for i in spacing]
-            return DeepLearningPreProcessModuleLogic().pull_node_resample_push(self.movingSelector.currentNode(), spacing, supportedResampleInterpolations[self.resampleInterpolation.currentIndex]['value'])
+            return ABLTemporalBoneSegmentationModuleLogic().pull_node_resample_push(self.movingSelector.currentNode(), spacing, supportedResampleInterpolations[self.resampleInterpolation.currentIndex]['value'])
         self.process_transform(function, set_moving_volume=True)
 
     def click_fiducial_tab(self, index):
@@ -550,7 +735,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
                 slicer.mrmlScene.AddNode(self.intermediateNode)
             self.intermediateNode.Copy(self.inputSelector.currentNode())
             self.intermediateNode.SetName(self.movingSelector.currentNode().GetName() + "_Fiducial")
-            self.intermediateNode = DeepLearningPreProcessModuleLogic().apply_fiducial_registration(self.intermediateNode, self.atlasFiducialNode, self.inputFiducialNode)
+            self.intermediateNode = ABLTemporalBoneSegmentationModuleLogic().apply_fiducial_registration(self.intermediateNode, self.atlasFiducialNode, self.inputFiducialNode)
             self.update_fiducial_buttons()
         self.process_transform(function, corresponding_button=self.fiducialApplyButton)
 
@@ -565,7 +750,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
 
     def click_fiducial_harden(self):
         def function():
-            output = DeepLearningPreProcessModuleLogic().harden_fiducial_registration(self.intermediateNode)
+            output = ABLTemporalBoneSegmentationModuleLogic().harden_fiducial_registration(self.intermediateNode)
             self.intermediateNode = None
             self.update_fiducial_buttons()
             return output
@@ -580,7 +765,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
             self.rigidProgress.visible = True
             self.rigidCancelButton.visible = True
             self.rigidApplyButton.visible = False
-            return DeepLearningPreProcessModuleLogic().apply_elastix_rigid_registration(elastix=self.elastixLogic,
+            return ABLTemporalBoneSegmentationModuleLogic().apply_elastix_rigid_registration(elastix=self.elastixLogic,
                                                                                         atlas_node=self.atlasNode,
                                                                                         moving_node=self.movingSelector.currentNode(),
                                                                                         mask_node=self.maskNode,
@@ -591,7 +776,7 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         self.rigidProgress.value = 0
         self.rigidProgress.visible = False
         self.rigidCancelButton.visible = False
-        DeepLearningPreProcessModuleLogic.attempt_abort_rigid_registration(self.elastixLogic)
+        ABLTemporalBoneSegmentationModuleLogic.attempt_abort_rigid_registration(self.elastixLogic)
 
     def click_crop_start(self):
         # cropParams = slicer.vtkMRMLCropVolumeParametersNode()
@@ -633,9 +818,288 @@ class DeepLearningPreProcessModuleWidget(ScriptedLoadableModuleWidget):
         self.isCropping = False
         self.update_crop_buttons()
 
+    def click_infer_source(self, state):
+        state = bool(state)
+        self.inferServerWidget.visible = state
+        self.inferDockerWidget.visible = not state
+
+    def _infer_progress(self, sec, f1, f2, s):
+        sec_map = {
+            DispatchStage.Initial: (0, 5),
+            DispatchStage.Validate: (5, 5),
+            DispatchStage.Preprocess: (10, 10),
+            DispatchStage.Save: (20, 10),
+            DispatchStage.Run: (30, 50),
+            DispatchStage.Load: (80, 10),
+            DispatchStage.Postprocess: (90, 10),
+        }
+
+        if sec == DispatchStage.Run:
+            self.inferStatus.text = "Running inference..."
+            if "inference iter" in s:
+                try:
+                    b = int(s.split("inference iter")[1].split(',')[0])
+                    self._infer_last_run_progress = b/186
+                except:
+                    pass
+            f1 = self._infer_last_run_progress
+            f2 = self._infer_last_run_progress
+            print(s)
+        else:
+            self.inferStatus.text = s
+        add, length = sec_map[sec]
+        self.inferProgressMajor.value = add + int(length*f1)
+        self.inferProgressMinor.value = int(100*f2)
+
+        slicer.app.processEvents()
+
+    def click_infer_apply(self):
+        inp = self.movingSelector.currentNode()
+
+        remote = bool(self.inferSource.checked)
+
+        ## First load the model
+        try:
+            with open(os.path.join(os.path.dirname(__file__), "Resources", "Models", "ABLTempSeg.json"), 'r') as f:
+                model = json.load(f)
+        except Exception as e:
+            traceback.print_exc()
+            slicer.util.errorDisplay("Unable to load inference model:\n" + ''.join(traceback.format_exc()))
+            return
+
+        ## Now assemble the configuration
+        config = {
+            "tmp_path": os.path.join(os.path.expanduser("~"), ".ablinfer")
+        }
+
+        if not os.path.isdir(config["tmp_path"]):
+            os.makedirs(config["tmp_path"])
+
+        settings = slicer.app.settings()
+        if remote: ## Remote server
+            host = self.inferServerHost.text.strip()
+            if not host:
+                slicer.util.errorDisplay("Invalid remote server address!")
+                return
+
+            ## Check if they've given authentication
+            username = self.inferServerUsername.text
+            password = self.inferServerPassword.text
+            if username and not password:
+                slicer.util.errorDisplay("A password is required if you enter a username!")
+                return
+            
+            ## Setup the session
+            s = requests.Session()
+            s.verify = False
+            if username:
+                s.auth = (username, password)
+                settings.setValue("ablinfer_server_username", username) 
+                settings.setValue("ablinfer_server_password", password)
+
+            config["base_url"] = host
+            config["session"] = s
+
+            dispatch = SlicerDispatchRemote
+
+            ## Store the updated parameters
+            settings.setValue("ablinfer_server_host", host)
+        else: ## Local docker instance
+            docker = self.inferDockerHost.text.strip()
+            
+            if docker:
+                config["docker"] = {"base_url": docker}
+
+            dispatch = SlicerDispatchDocker
+            settings.setValue("ablinfer_docker_host", docker)
+        
+        model_config = {
+            "inputs": {
+                "input_vol": {
+                    "value": inp,
+                },
+            },
+            "outputs": {
+                "output_seg": {
+                    "value": None,
+                    "post": [
+                        { ## Island removal (done in container)
+                            "enabled": False,
+                        },
+                        { ## Show result
+                            "enabled": True,
+                            "params": {
+                                "smoothing": 0.5,
+                            },
+                        },
+                    ],
+                },
+            },
+        }
+
+        ## We're ready to run
+        self.inferRunWidget.visible = True
+        self._infer_last_run_progress = 0
+        self.inferExportButton.enabled = False
+        try:
+            ABLTemporalBoneSegmentationModuleLogic.run_inference(
+                config, 
+                model, 
+                model_config,
+                dispatch=dispatch,
+                progress=self._infer_progress,
+            )
+        except Exception as e:
+            traceback.print_exc()
+            slicer.util.errorDisplay("Error running inference:\n"+''.join(traceback.format_exc()))
+        else:
+            self._infer_progress(DispatchStage.Postprocess, 1, 1, "Finished!")
+            self.switch_to_3dview()
+            self.inferSegmentation = model_config["outputs"]["output_seg"]["value"]
+            self.inferExportButton.enabled = True
+
+    def switch_to_3dview(self):
+        if self.atlasFiducialNode is not None:
+            slicer.mrmlScene.RemoveNode(self.atlasFiducialNode)
+        if self.atlasNode is not None:
+            slicer.mrmlScene.RemoveNode(self.atlasNode)
+        l = slicer.app.layoutManager()
+        l.setLayout(16)
+        for view in ("Red", "Green", "Yellow"):
+            l.sliceWidget(view).sliceLogic().GetSliceCompositeNode().SetBackgroundVolumeID(self.movingSelector.currentNode().GetID())
+
+    def click_infer_export(self):
+        if self.inferSegmentation is None:
+            slicer.util.errorDisplay("No inference has been run yet!")
+            return
+
+        target = qt.QFileDialog.getExistingDirectory(None, "Choose an output directory *MUST BE EMPTY*")
+        ABLTemporalBoneSegmentationModuleLogic.export_for_cardinalsim(self.movingSelector.currentNode(), self.inferSegmentation, target)
+
+    def click_render_volume(self, checked):
+        if checked:
+            ## First try to get the preset to make sure it's valid
+            preset = slicer.modules.volumerendering.logic().GetPresetByName(self.renderVolumePreset)
+            if preset is None:
+                slicer.util.errorDisplay("Invalid volume rendering preset \"%s\"" % self.renderVolumePreset)
+                return
+        
+            ## Get the volume rendering widget
+            widget = slicer.modules.volumerendering.widgetRepresentation()
+            ## Set its volume node
+            widget.setMRMLVolumeNode(self.movingSelector.currentNode())
+            ## Now we need its VolumeProperty node
+            node = widget.mrmlVolumePropertyNode()
+            ## Assign it the proper preset, which is done by copying the preset node into the property node
+            node.Copy(preset)
+            ## Now make it visible
+            widget.mrmlDisplayNode().SetVisibility(True)
+
+            ## Store them for later use
+            self.renderVolumePropertyNode = node
+            self.renderVolumeDisplayNode = widget.mrmlDisplayNode()
+            self.renderVolumeWidget.setVisible(True)
+            ## To get the shift slider to work, we have to use a child widget
+            self.renderVolumePropertyWidget = slicer.util.findChild(widget, "VolumePropertyNodeWidget")
+
+            ## Now we have to fix the slider
+            self.renderVolumeShiftPrevious = 0
+            self.renderVolumeShiftSlider.value = 0
+            shift_range = node.GetEffectiveRange()
+            shift_width = max(shift_range) - min(shift_range)
+            self.renderVolumeShiftSlider.minimum = -shift_width
+            self.renderVolumeShiftSlider.maximum = shift_width
+            self.renderVolumeShiftSlider.singleStep = shift_width/500
+            self.renderVolumeOpacityNodes = []
+            scalar_opacity = node.GetScalarOpacity()
+            actual_opacity = 0
+            for i in range(scalar_opacity.GetSize()):
+                a = [0, 0, 0, 0]
+                if scalar_opacity.GetNodeValue(i, a) != -1 and a[1] > 0: ## Non-zero opacity
+                    self.renderVolumeOpacityNodes.append(i)
+                    actual_opacity = max(actual_opacity, a[1])
+            self.renderVolumeOpacitySlider.blockSignals(True)
+            self.renderVolumeOpacitySlider.value = actual_opacity
+            self.renderVolumeOpacitySlider.blockSignals(False)
+        else:
+            self.renderVolumeDisplayNode.SetVisibility(False)
+            self.renderVolumeWidget.setVisible(False)
+
+    def move_render_shift(self, position):
+        delta = position - self.renderVolumeShiftPrevious
+        if abs(delta) < 0.01:
+            return
+        self.renderVolumeShiftPrevious = position
+
+        self.renderVolumePropertyWidget.moveAllPoints(delta, 0, False)
+        self.renderVolumeShiftSlider.blockSignals(True)
+        self.renderVolumeShiftSlider.value = position
+        self.renderVolumeShiftSlider.blockSignals(False)
+
+    def move_render_opacity(self, position):
+        ## Yikes, here we go...
+
+        ## The way to change opacity (pulled from https://github.com/commontk/CTK/blob/master/Libs/Visualization/VTK/Widgets/ctkVTKThresholdWidget.cpp)
+        ## is to loop over all of the nodes used to specify the "ScalarOpacity" function and change
+        ## the opacity on each individual node (?)
+
+        scalar_opacity = self.renderVolumePropertyNode.GetScalarOpacity()
+        for i in self.renderVolumeOpacityNodes: ## Loop over only the non-zero opacity ones
+            nv = [0, 0, 0, 0]
+            ## Get its current value
+            if scalar_opacity.GetNodeValue(i, nv) == -1: ## Failed
+                continue
+            ## Now set the opacity (index 1)
+            nv[1] = position
+            scalar_opacity.SetNodeValue(i, nv)
+
+        self.renderVolumeOpacitySlider.blockSignals(True)
+        self.renderVolumeOpacitySlider.value = position
+        self.renderVolumeOpacitySlider.blockSignals(False)
+
+    def choose_render_view(self, preset_name):
+        if preset_name not in cameraPresets:
+            slicer.util.errorDisplay("Unknown camera preset \"%s\"!" % preset_name)
+            return
+
+        l = slicer.app.layoutManager()
+        if l.threeDViewCount == 0 or not any((l.threeDWidget(i).visible for i in range(l.threeDViewCount))):
+            ## No visible 3D views, switch layouts
+            self.switch_to_3dview()
+
+        for vid in range(l.threeDViewCount):
+            ## We only want to move the first visible camera
+            widget = l.threeDWidget(vid)
+            if not widget.visible:
+                continue
+
+            view = widget.mrmlViewNode()
+            ## Try to get the view's actual camera first
+            cam_logic = slicer.modules.cameras.logic()
+            cam = cam_logic.GetViewActiveCameraNode(view)
+            if cam is None:
+                ## Next, try to get the default camera
+                cam = slicer.util.getNode("Camera")
+                if cam is None:
+                    ## Lastly, just make a new one
+                    cam = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLCameraNode")
+                ## In either case, set the camera for the view
+                cam.SetActiveTag(view.GetID())
+            
+            ## Now we can set the actual preset; this involves setting the position, focal point, 
+            ## and "view up" off of the preset
+            preset = cameraPresets[preset_name]
+            was_modifying = cam.StartModify()
+            cam.SetPosition(preset["position"])
+            cam.SetFocalPoint(preset["focal_point"])
+            cam.SetViewUp(preset["view_up"])
+            cam.ResetClippingRange()
+            cam.EndModify(was_modifying)
+
+            break
 
 # Main Logic
-class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
+class ABLTemporalBoneSegmentationModuleLogic(ScriptedLoadableModuleLogic):
     @staticmethod
     def update_slicer_view(moving, atlas, overlay_opacity):
         slicer.app.layoutManager().setLayout(21)
@@ -701,7 +1165,7 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
     @staticmethod
     def pull_node_resample_push(node, spacing_in_um, interpolation):
         image = sitku.PullVolumeFromSlicer(node.GetID())
-        resampledImage = DeepLearningPreProcessModuleLogic().resample_image(image, spacing_in_um, interpolation)
+        resampledImage = ABLTemporalBoneSegmentationModuleLogic().resample_image(image, spacing_in_um, interpolation)
         resampledNode = sitku.PushVolumeToSlicer(resampledImage, None, node.GetName() + "_Resampled" + str(spacing_in_um) + '', "vtkMRMLScalarVolumeNode")
         return resampledNode
 
@@ -730,7 +1194,6 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
             'transformType'    : 'Rigid',
             "saveTransform"    : transform_node.GetID()
         })
-        print(output)
         moving_node.ApplyTransform(transform_node.GetTransformToParent())
         # clean up
         # slicer.mrmlScene.RemoveNode(transform)
@@ -806,3 +1269,89 @@ class DeepLearningPreProcessModuleLogic(ScriptedLoadableModuleLogic):
         if dialog.exec_() != qt.QDialog.Accepted: return
         o = slicer.util.saveNode(node=node, filename=dialog.selectedFiles()[0] + next(t for t in supportedSaveTypes if t["title"] == dialog.selectedNameFilter())['value'])
 
+    @staticmethod
+    def run_inference(config, model, model_config, dispatch=SlicerDispatchDocker, progress=lambda *args: None):
+        dispatch = dispatch(config)
+
+        return dispatch.run(model, model_config, progress=progress)
+    
+    @staticmethod
+    def export_for_cardinalsim(volume, segmentation, directory, labels=None):
+        """Export the given volume and segmentation for use in CardinalSim.
+
+        The output format is:
+
+            directory/{volume_name}_dicom (folder containing DICOM series for the volume)
+            directory/{volume_name}_{segment_name}-label.nrrd (split segments)
+
+
+        :param volume: The volume node to be exported.
+        :param segmentation: The segmentation node to be exported.
+        :param directory: The output directory. *THIS WILL BE ERASED*
+        :param labels: The labels for each segmentation, mapping the integer value of a segment to 
+                       its human-friendly name. If not given, defaults to the temporal bone ones.
+        """
+        directory = os.path.abspath(directory)
+
+        ## First, export the volume to a labelmap
+        dicom_dir = os.path.join(directory, volume.GetName() + "_dicom")
+        if os.path.exists(dicom_dir):
+            shutil.rmtree(dicom_dir)
+        os.makedirs(dicom_dir, exist_ok=True)
+        dicom_params = {
+            "inputVolume": volume,
+            "dicomPrefix": "IMG",
+            "dicomDirectory": dicom_dir,
+        }
+
+        res = slicer.cli.run(slicer.modules.createdicomseries, None, dicom_params, wait_for_completion=True)
+        if res.GetStatusString() != "Completed":
+            raise Exception("DICOM export failed:\n"+res.GetErrorText())
+
+        ## Now export the actual segments; first, convert the segmentation to a labelmap
+        seg_ids_v = vtk.vtkStringArray()
+        seg_node = segmentation.GetSegmentation()
+
+        ## We want all of the segments for now
+        for n in range(seg_node.GetNumberOfSegments()):
+            seg_ids_v.InsertNextValue(seg_node.GetNthSegmentID(n))
+
+        labelmap = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLabelMapVolumeNode")
+        slicer.vtkSlicerSegmentationsModuleLogic.ExportSegmentsToLabelmapNode(segmentation, seg_ids_v, labelmap, volume)
+
+        if labels is None:
+            labels = {
+                1: "Sigmoid Sinus",
+                2: "Facial Nerve",
+                3: "Bony Inner Ear",
+                4: "Malleus",
+                5: "Incus",
+                6: "Scapes",
+                7: "Carotid Artery",
+                8: "Internal Auditory Canal and Dura",
+                9: "External Auditory Canal",
+            }
+        
+        ## Now we have to split it into individual segments
+        label_image = sitku.PullVolumeFromSlicer(labelmap)
+
+        for val, name in labels.items():
+            ## We only want a single segment in this image, so threshold out the others
+            thresh_filt = sitk.ThresholdImageFilter()
+            thresh_filt.SetLower(val)
+            thresh_filt.SetUpper(val)
+            res = thresh_filt.Execute(label_image)
+
+            ## Now set every non-zero pixel to 1
+            thresh_filt = sitk.ThresholdImageFilter()
+            thresh_filt.SetLower(0)
+            thresh_filt.SetUpper(0)
+            thresh_filt.SetOutsideValue(1)
+            res = thresh_filt.Execute(res)
+
+            ## Lastly, save the segment
+            filename = volume.GetName() + "_" + name.replace(' ', '_') + "-label.nrrd"
+            sitk.WriteImage(res, os.path.join(directory, filename))
+
+        ## Clean up the labelmap
+        slicer.mrmlScene.RemoveNode(labelmap)

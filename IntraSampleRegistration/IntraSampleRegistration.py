@@ -1,6 +1,6 @@
 import qt
 import slicer
-import DeepLearningPreProcessModule
+import ABLTemporalBoneSegmentationModule
 import Elastix
 from slicer.ScriptedLoadableModule import *
 
@@ -301,14 +301,14 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
             pair = self.volumePairs[rows[0].row()]
             f = pair.fixed.currentNode().GetID() if pair.fixed.currentNode() is not None else None
             m = pair.moving.currentNode().GetID() if pair.moving.currentNode() is not None else None
-            DeepLearningPreProcessModule.DeepLearningPreProcessModuleLogic.update_slicer_view(f, m, 0.4)
+            ABLTemporalBoneSegmentationModule.ABLTemporalBoneSegmentationModuleLogic.update_slicer_view(f, m, 0.4)
         self.update_volume_pair_tools()
 
     def update_progress(self, text=None, current_registration_step=None, progress=None):
         if text is not None:
             print(text)
             self.currentProgressLabel.text = 'Status: ' + ((text[:60] + '..') if len(text) > 60 else text)
-            if progress is None: progress = DeepLearningPreProcessModule.DeepLearningPreProcessModuleLogic.process_rigid_progress(text)
+            if progress is None: progress = ABLTemporalBoneSegmentationModule.ABLTemporalBoneSegmentationModuleLogic.process_rigid_progress(text)
 
         if progress is not None:
             self.progressBar.value = progress
@@ -366,7 +366,7 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
         IntraSampleRegistrationLogic().execute_batch(self.elastixLogic, readyPairs, self.registrationSteps, self.update_progress)
 
     def click_cancel(self):
-        DeepLearningPreProcessModule.DeepLearningPreProcessModuleLogic.attempt_abort_rigid_registration(self.elastixLogic)
+        ABLTemporalBoneSegmentationModule.ABLTemporalBoneSegmentationModuleLogic.attempt_abort_rigid_registration(self.elastixLogic)
         if self.brainsCliLogic is not None: self.brainsCliLogic.Cancel()
         self.click_finish()
 
@@ -377,7 +377,7 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
 
     def click_save(self):
         for i in self.volumeTable.selectionModel().selectedRows():
-            DeepLearningPreProcessModule.DeepLearningPreProcessModuleLogic.open_save_node_dialog(self.volumePairs[i.row()].moving.currentNode())
+            ABLTemporalBoneSegmentationModule.ABLTemporalBoneSegmentationModuleLogic.open_save_node_dialog(self.volumePairs[i.row()].moving.currentNode())
 
 
 class IntraSampleRegistrationLogic(ScriptedLoadableModuleLogic):
@@ -389,7 +389,7 @@ class IntraSampleRegistrationLogic(ScriptedLoadableModuleLogic):
             for registration in registration_steps:
                 update_progress(current_registration_step=registration)
                 if registration is RegistrationType.CUSTOM_ELASTIX:
-                    outputNode = DeepLearningPreProcessModule.DeepLearningPreProcessModuleLogic.apply_elastix_rigid_registration(
+                    outputNode = ABLTemporalBoneSegmentationModule.ABLTemporalBoneSegmentationModuleLogic.apply_elastix_rigid_registration(
                         elastix=elastix,
                         atlas_node=pair.fixed.currentNode(),
                         moving_node=outputNode,

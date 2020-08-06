@@ -1,5 +1,5 @@
 #-----------------------------------------------------------------------------
-set(MODULE_NAME DeepLearningPreProcessModule)
+set(MODULE_NAME ABLTemporalBoneSegmentationModule)
 
 #-----------------------------------------------------------------------------
 set(MODULE_PYTHON_SCRIPTS
@@ -8,6 +8,18 @@ set(MODULE_PYTHON_SCRIPTS
 
 set(MODULE_PYTHON_RESOURCES
   Resources/Icons/${MODULE_NAME}.png
+  Resources/Atlases/Atlas_L.mha
+  Resources/Atlases/Atlas_R.mha
+  Resources/Atlases/Fiducial_L.fcsv
+  Resources/Atlases/Fiducial_R.fcsv
+  Resources/Icons/check.png
+  Resources/Icons/fiducial.png
+  Resources/Icons/fit.png
+  Resources/Masks/CochleaRegistrationMask_L.nrrd
+  Resources/Masks/CochleaRegistrationMask_R.nrrd
+  Resources/Parameters/Parameters_Rigid.txt
+  Resources/Parameters/Parameters_Rigid_Sumit.txt
+  Resources/Models/ABLTempSeg.json
   )
 
 #-----------------------------------------------------------------------------
