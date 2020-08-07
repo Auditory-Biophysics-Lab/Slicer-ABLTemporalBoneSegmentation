@@ -39,7 +39,7 @@ endif()
 add_subdirectory(ABLTemporalBoneSegmentationModule)
 add_subdirectory(IntraSampleRegistration)
 install(
-	DIRECTORY "${CMAKE_BINARY_DIR}/../python-packages-install"
+	DIRECTORY "${CMAKE_BINARY_DIR}/../python-packages-install/"
 	DESTINATION ${Slicer_INSTALL_ROOT}${Slicer_BUNDLE_EXTENSIONS_LOCATION}
 	COMPONENT RuntimeLibraries
 )
