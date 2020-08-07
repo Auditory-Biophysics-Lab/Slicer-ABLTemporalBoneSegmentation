@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.13.4)
 
-project(AuditoryBiophysicsLabOtolaryngology)
+project(ABLTemporalBoneSegmentation)
 
 #-----------------------------------------------------------------------------
 # Extension meta-information
 set(EXTENSION_HOMEPAGE "https://github.com/Auditory-Biophysics-Lab/Slicer-ABLTemporalBoneSegmentation")
 set(EXTENSION_CATEGORY "Otolaryngology")
-set(EXTENSION_CONTRIBUTORS "Evan Simpson and Ben Connors (HML & SKA Lab.)")
+set(EXTENSION_CONTRIBUTORS "Evan Simpson (ABL at UWO), Ben Connors (ABL at UWO)")
 set(EXTENSION_DESCRIPTION "Temporal bone deep-learning segmentation and pre-processing module.")
 set(EXTENSION_ICONURL "https://raw.githubusercontent.com/Auditory-Biophysics-Lab/Slicer-ABLTemporalBoneSegmentation/master/ABLTemporalBoneSegmentationModule/Resources/Icons/ABLTemporalBoneSegmentationModule.png")
 set(EXTENSION_SCREENSHOTURLS "https://raw.githubusercontent.com/Auditory-Biophysics-Lab/Slicer-ABLTemporalBoneSegmentation/master/Images/main.png")
