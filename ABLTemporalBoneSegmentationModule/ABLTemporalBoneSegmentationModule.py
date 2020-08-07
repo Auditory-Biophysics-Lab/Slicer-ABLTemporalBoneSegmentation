@@ -1134,14 +1134,15 @@ class ABLTemporalBoneSegmentationModuleLogic(ScriptedLoadableModuleLogic):
         atlasFiducialNode = slicer.mrmlScene.GetFirstNodeByName('Atlas_' + side_indicator + ' Fiducials')
         framePath = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Atlases/"
         if atlasNode is None:
-            atlasNode = slicer.util.loadVolume(framePath + 'Atlas_' + side_indicator + '.mha', returnNode=True)[1]
+            atlasNode = slicer.util.loadVolume(framePath + 'Atlas_' + side_indicator + '.mha')
             atlasNode.HideFromEditorsOn()
         if atlasFiducialNode is None:
             atlasFiducialNode = slicer.util.loadMarkups(framePath + 'Fiducial_' + side_indicator + '.fcsv')
             atlasFiducialNode.SetName('Atlas_' + side_indicator + ' Fiducials')
             atlasFiducialNode.SetLocked(True)
             atlasFiducialNode.HideFromEditorsOn()
-        maskNode = slicer.util.loadVolume(framePath + 'CochleaRegistrationMask_' + side_indicator + '.nrrd', returnNode=True)[1]
+        framePath = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Masks/"
+        maskNode = slicer.util.loadVolume(framePath + 'CochleaRegistrationMask_' + side_indicator + '.nrrd')
         return atlasNode, atlasFiducialNode, maskNode
 
     @staticmethod
