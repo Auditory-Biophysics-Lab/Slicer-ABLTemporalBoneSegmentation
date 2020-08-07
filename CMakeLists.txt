@@ -4,13 +4,13 @@ project(AuditoryBiophysicsLabOtolaryngology)
 
 #-----------------------------------------------------------------------------
 # Extension meta-information
-set(EXTENSION_HOMEPAGE "https://www.slicer.org/wiki/Documentation/Nightly/Extensions/ExtTest")
-set(EXTENSION_CATEGORY "Examples")
+set(EXTENSION_HOMEPAGE "https://github.com/Auditory-Biophysics-Lab/Slicer-ABLTemporalBoneSegmentation")
+set(EXTENSION_CATEGORY "Otolaryngology")
 set(EXTENSION_CONTRIBUTORS "Evan Simpson and Ben Connors (HML & SKA Lab.)")
 set(EXTENSION_DESCRIPTION "Temporal bone deep-learning segmentation and pre-processing module.")
-set(EXTENSION_ICONURL "http://www.example.com/Slicer/Extensions/TemporalDeepLearningPreProcessModule.png")
-set(EXTENSION_SCREENSHOTURLS "http://www.example.com/Slicer/Extensions/TemporalDeepLearningPreProcessModule/Screenshots/1.png")
-set(EXTENSION_DEPENDS "NA") # Specified as a list or "NA" if no dependencies
+set(EXTENSION_ICONURL "https://raw.githubusercontent.com/Auditory-Biophysics-Lab/Slicer-ABLTemporalBoneSegmentation/master/ABLTemporalBoneSegmentationModule/Resources/Icons/ABLTemporalBoneSegmentationModule.png")
+set(EXTENSION_SCREENSHOTURLS "https://raw.githubusercontent.com/Auditory-Biophysics-Lab/Slicer-ABLTemporalBoneSegmentation/master/Images/main.png")
+set(EXTENSION_DEPENDS "SlicerElastix") # Specified as a list or "NA" if no dependencies
 set(EXTENSION_BUILD_SUBDIRECTORY inner-build)
 
 set(SUPERBUILD_TOPLEVEL_PROJECT inner)
