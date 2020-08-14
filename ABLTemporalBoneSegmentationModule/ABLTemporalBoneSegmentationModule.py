@@ -183,9 +183,11 @@ class ABLTemporalBoneSegmentationModuleWidget(ScriptedLoadableModuleWidget):
     inferProgressMajor = None
     inferProgressMinor = None
     inferApplyButton = None
-    inferExportButton = None
-    inferSegmentation = None
+    inferGoodVolume = None
     _infer_last_run_progress = 0
+
+    exportSelector = None
+    exportButton = None
 
     renderVolumeNode = None
     renderVolumePreset = "CT-AAA2"
@@ -205,6 +207,7 @@ class ABLTemporalBoneSegmentationModuleWidget(ScriptedLoadableModuleWidget):
         self.init_crop_and_transform()
         self.init_infer_tools()
         self.init_render_tools()
+        self.init_export_tools()
         self.init_resample_tools()
 
     def init_volume_tools(self):
@@ -348,12 +351,10 @@ class ABLTemporalBoneSegmentationModuleWidget(ScriptedLoadableModuleWidget):
         self.inferServerPassword.text = settings.value("ablinfer_server_password") or ""
         self.inferServerUsername.text = settings.value("ablinfer_server_username") or ""
 
+        self.inferGoodVolume = qt.QCheckBox("Download higher-resolution volume?")
+
         self.inferApplyButton = qt.QPushButton("Run Inference")
         self.inferApplyButton.connect('clicked(bool)', self.click_infer_apply)
-
-        self.inferExportButton = qt.QPushButton("Export for CardinalSim")
-        self.inferExportButton.enabled = False
-        self.inferExportButton.connect("clicked(bool)", self.click_infer_export)
 
     def init_render_tools(self):
         self.renderVolumeCheckbox = qt.QCheckBox("Render the moving volume")
@@ -383,6 +384,19 @@ class ABLTemporalBoneSegmentationModuleWidget(ScriptedLoadableModuleWidget):
         self.renderVolumeShiftSlider.connect("valueChanged(double)", self.move_render_shift)
         layout.addRow("Bone/Tissue Shift:", self.renderVolumeShiftSlider)
 
+    def init_export_tools(self):
+        self.exportSelector = slicer.qMRMLNodeComboBox()
+        self.exportSelector.nodeTypes = ["vtkMRMLSegmentationNode"]
+        self.exportSelector.setMRMLScene(slicer.mrmlScene)
+        self.exportSelector.addEnabled = False
+        self.exportSelector.renameEnabled = True
+        self.exportSelector.noneEnabled = False
+        self.exportSelector.removeEnabled = True
+        self.exportSelector.enabled = True
+
+        self.exportButton = qt.QPushButton("Export for CardinalSim")
+        self.exportButton.connect("clicked(bool)", self.click_export_cardinalsim)
+
     # UI build ------------------------------------------------------------------------------
     def setup(self):
         ScriptedLoadableModuleWidget.setup(self)
@@ -392,6 +406,7 @@ class ABLTemporalBoneSegmentationModuleWidget(ScriptedLoadableModuleWidget):
         self.sectionsList.append(self.build_crop_tools())
         self.sectionsList.append(self.build_infer_tools())
         self.sectionsList.append(self.build_render_tools())
+        self.sectionsList.append(self.build_export_tools())
         self.sectionsList.append(self.build_resample_tools())
         for s in self.sectionsList: self.layout.addWidget(s)
         self.layout.addStretch()
@@ -515,6 +530,8 @@ class ABLTemporalBoneSegmentationModuleWidget(ScriptedLoadableModuleWidget):
         layout.addWidget(self.inferServerWidget)
         self.inferServerWidget.visible = False
 
+        layout.addWidget(self.inferGoodVolume)
+
         rl = qt.QVBoxLayout(self.inferRunWidget)
         rl.addWidget(self.inferStatus)
         rl.addWidget(self.inferProgressMajor)
@@ -523,9 +540,20 @@ class ABLTemporalBoneSegmentationModuleWidget(ScriptedLoadableModuleWidget):
         self.inferRunWidget.visible = False
 
         layout.addWidget(self.inferApplyButton)
-        layout.addWidget(self.inferExportButton)
         layout.setMargin(10)
         self.click_infer_source(0)
+
+        return section
+
+    def build_export_tools(self):
+        section = InterfaceTools.build_dropdown("Step 6. Export", disabled=True)
+        layout = qt.QFormLayout(section)
+        l = qt.QLabel("Export the segmentation and volume to CardinalSim. This will export the current moving volume and the segmentation selected below into a folder that can then be loaded into CardinalSim. Please ensure that the target folder is empty. Currently, CardinalSim requires volumes and segmentations to have the same pixel dimensions; the segmentation will be resampled to match the volume.")
+        l.setWordWrap(True)
+        layout.addRow(l)
+        layout.addRow("Segmentation to Export:", self.exportSelector)
+
+        layout.addWidget(self.exportButton)
 
         return section
 
@@ -913,6 +941,7 @@ class ABLTemporalBoneSegmentationModuleWidget(ScriptedLoadableModuleWidget):
             dispatch = SlicerDispatchDocker
             settings.setValue("ablinfer_docker_host", docker)
         
+        good_volume = bool(self.inferGoodVolume.isChecked())
         model_config = {
             "inputs": {
                 "input_vol": {
@@ -920,8 +949,13 @@ class ABLTemporalBoneSegmentationModuleWidget(ScriptedLoadableModuleWidget):
                 },
             },
             "outputs": {
+                "input_vol_resampled": {
+                    "enabled": good_volume,
+                    "value": None,
+                },
                 "output_seg": {
                     "value": None,
+                    "enabled": True,
                     "post": [
                         { ## Island removal (done in container)
                             "enabled": False,
@@ -940,7 +974,6 @@ class ABLTemporalBoneSegmentationModuleWidget(ScriptedLoadableModuleWidget):
         ## We're ready to run
         self.inferRunWidget.visible = True
         self._infer_last_run_progress = 0
-        self.inferExportButton.enabled = False
         try:
             ABLTemporalBoneSegmentationModuleLogic.run_inference(
                 config, 
@@ -953,10 +986,11 @@ class ABLTemporalBoneSegmentationModuleWidget(ScriptedLoadableModuleWidget):
             traceback.print_exc()
             slicer.util.errorDisplay("Error running inference:\n"+''.join(traceback.format_exc()))
         else:
+            if good_volume:
+                self.movingSelector.setCurrentNode(model_config["outputs"]["input_vol_resampled"]["value"])
             self._infer_progress(DispatchStage.Postprocess, 1, 1, "Finished!")
             self.switch_to_3dview()
-            self.inferSegmentation = model_config["outputs"]["output_seg"]["value"]
-            self.inferExportButton.enabled = True
+            self.exportSelector.setCurrentNode(model_config["outputs"]["output_seg"]["value"])
 
     def switch_to_3dview(self):
         if self.atlasFiducialNode is not None:
@@ -968,13 +1002,13 @@ class ABLTemporalBoneSegmentationModuleWidget(ScriptedLoadableModuleWidget):
         for view in ("Red", "Green", "Yellow"):
             l.sliceWidget(view).sliceLogic().GetSliceCompositeNode().SetBackgroundVolumeID(self.movingSelector.currentNode().GetID())
 
-    def click_infer_export(self):
-        if self.inferSegmentation is None:
-            slicer.util.errorDisplay("No inference has been run yet!")
+    def click_export_cardinalsim(self):
+        if self.exportSelector.currentNode() is None:
+            slicer.util.errorDisplay("No segmentation is selected!")
             return
 
         target = qt.QFileDialog.getExistingDirectory(None, "Choose an output directory *MUST BE EMPTY*")
-        ABLTemporalBoneSegmentationModuleLogic.export_for_cardinalsim(self.movingSelector.currentNode(), self.inferSegmentation, target)
+        ABLTemporalBoneSegmentationModuleLogic.export_for_cardinalsim(self.movingSelector.currentNode(), self.exportSelector.currentNode(), target)
 
     def click_render_volume(self, checked):
         if checked:
@@ -1327,7 +1361,7 @@ class ABLTemporalBoneSegmentationModuleLogic(ScriptedLoadableModuleLogic):
                 3: "Bony Inner Ear",
                 4: "Malleus",
                 5: "Incus",
-                6: "Scapes",
+                6: "Stapes",
                 7: "Carotid Artery",
                 8: "Internal Auditory Canal and Dura",
                 9: "External Auditory Canal",
@@ -1351,8 +1385,11 @@ class ABLTemporalBoneSegmentationModuleLogic(ScriptedLoadableModuleLogic):
             res = thresh_filt.Execute(res)
 
             ## Lastly, save the segment
+            fw = sitk.ImageFileWriter()
             filename = volume.GetName() + "_" + name.replace(' ', '_') + "-label.nrrd"
-            sitk.WriteImage(res, os.path.join(directory, filename))
+            fw.SetFileName(os.path.join(directory, filename))
+            fw.UseCompressionOn()
+            fw.Execute(res)
 
         ## Clean up the labelmap
         slicer.mrmlScene.RemoveNode(labelmap)
