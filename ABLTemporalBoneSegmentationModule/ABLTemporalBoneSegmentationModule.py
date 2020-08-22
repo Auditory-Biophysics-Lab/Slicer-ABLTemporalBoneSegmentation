@@ -21,6 +21,10 @@ import vtk
 from slicer.ScriptedLoadableModule import *
 from ablinfer.slicer import SlicerDispatchDocker, SlicerDispatchRemote
 from ablinfer.constants import DispatchStage
+from ablinfer.remote import DispatchRemote
+from ablinfer.base import DispatchException
+import docker
+import requests
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -929,11 +933,13 @@ class ABLTemporalBoneSegmentationModuleWidget(ScriptedLoadableModuleWidget):
             config["session"] = s
 
             dispatch = SlicerDispatchRemote
+            is_docker = False
 
             ## Store the updated parameters
             settings.setValue("ablinfer_server_host", host)
         else: ## Local docker instance
             docker = self.inferDockerHost.text.strip()
+            is_docker = True
             
             if docker:
                 config["docker"] = {"base_url": docker}
@@ -981,10 +987,24 @@ class ABLTemporalBoneSegmentationModuleWidget(ScriptedLoadableModuleWidget):
                 model_config,
                 dispatch=dispatch,
                 progress=self._infer_progress,
+                get_model=True,
             )
         except Exception as e:
             traceback.print_exc()
-            slicer.util.errorDisplay("Error running inference:\n"+''.join(traceback.format_exc()))
+            formetted = traceback.format_exc()
+            if isinstance(e, docker.errors.ImageNotFound):
+                slicer.util.errorDisplay("Unable to find the model's Docker image: %s.\nThis means that the Docker image isn't available locally and isn't available on the Docker repository; you will have to download it manually.")
+            elif isinstance(e, docker.errors.APIError):
+                slicer.util.errorDisplay("Error with the Docker daemon: %s.\nThis usually means there's a problem with the Docker daemon, your version of this module is out of date, or your Docker daemon is out of date." % repr(e))
+            elif isinstance(e, requests.exceptions.RequestException):
+                if is_docker: ## The Docker SDK uses requests for communication
+                    slicer.util.errorDisplay("Error communicating with the Docker daemon: %s.\nThis usually means that either Docker isn't running, is running in an unusual spot (which you must set in the \"Docker Host\" configuration, or you don't have permission to access it." % repr(e))
+                else:
+                    slicer.util.errorDisplay("Error with remote connection: %s.\nThis usually means that something is wrong with the remote server or your internet connection." % repr(e))
+            elif isinstance(e, DispatchException):
+                slicer.util.errorDisplay("Error running model: %s\nThis is usually caused by a problem with your configuration or your input." % repr(e))
+            else:
+                slicer.util.errorDisplay("Error running inference:\n"+''.join(traceback.format_exc()))
         else:
             if good_volume:
                 self.movingSelector.setCurrentNode(model_config["outputs"]["input_vol_resampled"]["value"])
@@ -1305,8 +1325,14 @@ class ABLTemporalBoneSegmentationModuleLogic(ScriptedLoadableModuleLogic):
         o = slicer.util.saveNode(node=node, filename=dialog.selectedFiles()[0] + next(t for t in supportedSaveTypes if t["title"] == dialog.selectedNameFilter())['value'])
 
     @staticmethod
-    def run_inference(config, model, model_config, dispatch=SlicerDispatchDocker, progress=lambda *args: None):
+    def run_inference(config, model, model_config, dispatch=SlicerDispatchDocker, progress=lambda *args: None, get_model=False):
         dispatch = dispatch(config)
+
+        if get_model and isinstance(dispatch, DispatchRemote): ## Try to retrieve the model from the remote server
+            try:
+                model = dispatch.get_model(model["id"])
+            except Exception as e:
+                logging.warning("Encountered an error retrieving model from remote: " + str(e))
 
         return dispatch.run(model, model_config, progress=progress)
     
