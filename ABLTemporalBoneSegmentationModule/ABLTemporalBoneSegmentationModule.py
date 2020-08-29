@@ -25,6 +25,7 @@ from ablinfer.remote import DispatchRemote
 from ablinfer.base import DispatchException
 import docker
 import requests
+import SampleData
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -1188,7 +1189,34 @@ class ABLTemporalBoneSegmentationModuleLogic(ScriptedLoadableModuleLogic):
         atlasFiducialNode = slicer.mrmlScene.GetFirstNodeByName('Atlas_' + side_indicator + ' Fiducials')
         framePath = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Atlases/"
         if atlasNode is None:
-            atlasNode = slicer.util.loadVolume(framePath + 'Atlas_' + side_indicator + '.mha')
+            ## Download the atlas from an old git commit
+            sums = {
+                "L": "SHA256:594d78fdd47b9e4e78b9edfe605eebdb11cdbb0aec690c89d2d3fe9b634a389f",
+                "R": "SHA256:258c1c140438134d15bca09c6289335248bb2a6dc415edd677fcf55f29e644a3",
+            }
+
+            logic = SampleData.SampleDataLogic()
+            window = slicer.util.createProgressDialog()
+
+            ## Show a progress window, per the wiki:
+            ## https://www.slicer.org/wiki/Documentation/Nightly/ScriptRepository#Load_volume_from_URL
+            def progress(msg, level=None):
+                print("Downloading atlas... %d%%" % logic.downloadPercent)
+                if window.wasCanceled:
+                    slicer.util.errorDisplay("Download canceled! This atlas file MUST be downloaded for this module to work properly.")
+                    raise Exception("Download canceled!")
+                window.show()
+                window.activateWindow()
+                window.setValue(int(logic.downloadPercent))
+                window.setLabelText("Downloading atlas...")
+                slicer.app.processEvents()
+
+            try:
+                logic.logMessage = progress
+                atlasNode, = logic.downloadFromURL(nodeNames="Atlas_"+side_indicator, fileNames="Atlas_%s.mha" % side_indicator, uris="https://github.com/Auditory-Biophysics-Lab/Slicer-ABLTemporalBoneSegmentation/raw/f28ee087ea0b44ec91a485d6b35739d56e080355/ABLTemporalBoneSegmentationModule/Resources/Atlases/Atlas_%s.mha" % side_indicator, checksums=sums[side_indicator])
+            finally:
+                window.close()
+
             atlasNode.HideFromEditorsOn()
         if atlasFiducialNode is None:
             atlasFiducialNode = slicer.util.loadMarkups(framePath + 'Fiducial_' + side_indicator + '.fcsv')
