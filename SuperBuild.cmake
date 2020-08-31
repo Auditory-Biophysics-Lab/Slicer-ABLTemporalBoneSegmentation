@@ -29,11 +29,11 @@ ExternalProject_Include_Dependencies(${proj}
 set(python_packages_DIR "${CMAKE_BINARY_DIR}/python-packages-install")
 file(TO_NATIVE_PATH ${python_packages_DIR} python_packages_DIR_NATIVE_DIR)
 
-set(_install_ablinfer COMMAND ${CMAKE_COMMAND}
-  -E env
-  PYTHONNOUSERSITE=1
-  ${PYTHON_EXECUTABLE} -m pip install ablinfer --prefix ${python_packages_DIR_NATIVE_DIR}
-  )
+#set(_install_ablinfer COMMAND ${CMAKE_COMMAND}
+#  -E env
+#  PYTHONNOUSERSITE=1
+#  ${PYTHON_EXECUTABLE} -m pip install ablinfer --prefix ${python_packages_DIR_NATIVE_DIR}
+#  )
 
 ## Pull the latest model JSON file on build
 set(_download_model COMMAND ${CMAKE_COMMAND}
@@ -45,7 +45,6 @@ ExternalProject_Add(${proj}
   ${${proj}_EP_ARGS}
   DOWNLOAD_COMMAND ""
   INSTALL_COMMAND ${CMAKE_COMMAND} -E echo_append ""
-  ${_install_ablinfer}
   ${_download_model}
   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}
   BINARY_DIR ${EXTENSION_BUILD_SUBDIRECTORY}

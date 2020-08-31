@@ -19,10 +19,17 @@ import requests
 import slicer
 import vtk
 from slicer.ScriptedLoadableModule import *
+
+try:
+    import ablinfer
+except ModuleNotFoundError:
+    slicer.util.pip_install("ablinfer")
+
 from ablinfer.slicer import SlicerDispatchDocker, SlicerDispatchRemote
 from ablinfer.constants import DispatchStage
 from ablinfer.remote import DispatchRemote
 from ablinfer.base import DispatchException
+
 import docker
 import requests
 import SampleData

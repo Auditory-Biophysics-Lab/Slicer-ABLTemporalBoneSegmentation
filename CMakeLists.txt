@@ -38,11 +38,11 @@ endif()
 ## NEXT_MODULE
 add_subdirectory(ABLTemporalBoneSegmentationModule)
 add_subdirectory(IntraSampleRegistration)
-install(
-	DIRECTORY "${CMAKE_BINARY_DIR}/../python-packages-install/"
-	DESTINATION ${Slicer_INSTALL_ROOT}${Slicer_BUNDLE_EXTENSIONS_LOCATION}
-	COMPONENT RuntimeLibraries
-)
+#install(
+#	DIRECTORY "${CMAKE_BINARY_DIR}/../python-packages-install/"
+#	DESTINATION ${Slicer_INSTALL_ROOT}${Slicer_BUNDLE_EXTENSIONS_LOCATION}
+#	COMPONENT RuntimeLibraries
+#)
 #-----------------------------------------------------------------------------
 set(EXTENSION_CPACK_INSTALL_CMAKE_PROJECTS)
 #list(APPEND EXTENSION_CPACK_INSTALL_CMAKE_PROJECTS "${Foo_DIR};Foo;RuntimeLibraries;/")
