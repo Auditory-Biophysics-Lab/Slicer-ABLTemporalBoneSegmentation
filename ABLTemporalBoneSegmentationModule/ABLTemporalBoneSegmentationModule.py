@@ -1189,7 +1189,7 @@ class ABLTemporalBoneSegmentationModuleLogic(ScriptedLoadableModuleLogic):
         atlasFiducialNode = slicer.mrmlScene.GetFirstNodeByName('Atlas_' + side_indicator + ' Fiducials')
         framePath = slicer.os.path.dirname(slicer.os.path.abspath(inspect.getfile(inspect.currentframe()))) + "/Resources/Atlases/"
         if atlasNode is None:
-            ## Download the atlas from an old git commit
+            ## Download the atlas from the git release
             sums = {
                 "L": "SHA256:594d78fdd47b9e4e78b9edfe605eebdb11cdbb0aec690c89d2d3fe9b634a389f",
                 "R": "SHA256:258c1c140438134d15bca09c6289335248bb2a6dc415edd677fcf55f29e644a3",
@@ -1213,7 +1213,7 @@ class ABLTemporalBoneSegmentationModuleLogic(ScriptedLoadableModuleLogic):
 
             try:
                 logic.logMessage = progress
-                atlasNode, = logic.downloadFromURL(nodeNames="Atlas_"+side_indicator, fileNames="Atlas_%s.mha" % side_indicator, uris="https://github.com/Auditory-Biophysics-Lab/Slicer-ABLTemporalBoneSegmentation/raw/f28ee087ea0b44ec91a485d6b35739d56e080355/ABLTemporalBoneSegmentationModule/Resources/Atlases/Atlas_%s.mha" % side_indicator, checksums=sums[side_indicator])
+                atlasNode, = logic.downloadFromURL(nodeNames="Atlas_"+side_indicator, fileNames="Atlas_%s.mha" % side_indicator, uris="https://github.com/Auditory-Biophysics-Lab/temporal-bone-segmentation/releases/download/v1.0/Atlas_%s.mha" % side_indicator, checksums=sums[side_indicator])
             finally:
                 window.close()
 

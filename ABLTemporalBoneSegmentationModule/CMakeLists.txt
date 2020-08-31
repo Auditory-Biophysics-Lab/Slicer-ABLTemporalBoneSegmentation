@@ -8,8 +8,6 @@ set(MODULE_PYTHON_SCRIPTS
 
 set(MODULE_PYTHON_RESOURCES
   Resources/Icons/${MODULE_NAME}.png
-  Resources/Atlases/Atlas_L.mha
-  Resources/Atlases/Atlas_R.mha
   Resources/Atlases/Fiducial_L.fcsv
   Resources/Atlases/Fiducial_R.fcsv
   Resources/Icons/check.png
