@@ -635,7 +635,7 @@ class ABLTemporalBoneSegmentationModuleWidget(ScriptedLoadableModuleWidget):
             output = function()
             if set_moving_volume: self.movingSelector.setCurrentNode(output)
         except Exception as e:
-            self.update_rigid_progress("Error: {0}".format(e))
+            self.update_rigid_progress(f"Error: {e}")
             import traceback
             traceback.print_exc()
         finally:
@@ -679,7 +679,7 @@ class ABLTemporalBoneSegmentationModuleWidget(ScriptedLoadableModuleWidget):
         progress = ABLTemporalBoneSegmentationModuleLogic.process_rigid_progress(text)
         self.rigidStatus.text = 'Status: ' + ((text[:60] + '..') if len(text) > 60 else text)
         if progress is not None: self.rigidProgress.value = progress
-        if progress is 100:
+        if progress == 100:
             self.rigidProgress.visible = False
             self.rigidCancelButton.visible = False
             p = qt.QPalette()
@@ -696,7 +696,7 @@ class ABLTemporalBoneSegmentationModuleWidget(ScriptedLoadableModuleWidget):
         self.update_sections_enabled(validity)
         if not validity and self.inputSelector.currentNode() is None: return
         # check for auto side selection
-        s = re.search("\d+\w_", self.inputSelector.currentNode().GetName())
+        s = re.search(r"\d+\w_", self.inputSelector.currentNode().GetName())
         if s is not None:
             s = s.group(0)[-2]
             if s == 'R': self.click_right_bone(force=True)
@@ -900,7 +900,7 @@ class ABLTemporalBoneSegmentationModuleWidget(ScriptedLoadableModuleWidget):
 
         ## First load the model
         try:
-            with open(os.path.join(os.path.dirname(__file__), "Resources", "Models", "ABLTempSeg.json"), 'r') as f:
+            with open(os.path.join(os.path.dirname(__file__), "Resources", "Models", "ABLTempSeg.json")) as f:
                 model = json.load(f)
         except Exception as e:
             traceback.print_exc()
@@ -1125,7 +1125,7 @@ class ABLTemporalBoneSegmentationModuleWidget(ScriptedLoadableModuleWidget):
             return
 
         l = slicer.app.layoutManager()
-        if l.threeDViewCount == 0 or not any((l.threeDWidget(i).visible for i in range(l.threeDViewCount))):
+        if l.threeDViewCount == 0 or not any(l.threeDWidget(i).visible for i in range(l.threeDViewCount)):
             ## No visible 3D views, switch layouts
             self.switch_to_3dview()
 

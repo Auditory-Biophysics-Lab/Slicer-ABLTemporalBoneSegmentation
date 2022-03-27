@@ -315,7 +315,7 @@ class IntraSampleRegistrationWidget(ScriptedLoadableModuleWidget):
             executed = len([p for p in self.volumePairs if p.status in [PairStatus.EXECUTING, PairStatus.COMPLETE]])
             total = len([p for p in self.volumePairs if p.status == PairStatus.PENDING]) + executed
             self.progressBar.setFormat(str(progress) + '% (' + str(executed) + ' of ' + str(total) + ')')
-            if progress is 100:
+            if progress == 100:
                 self.state = IntraSampleRegistrationState.FINISHED
         if current_registration_step is not None and self.state is not IntraSampleRegistrationState.FINISHED:
             registration = None
